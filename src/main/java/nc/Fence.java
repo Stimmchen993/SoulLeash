@@ -64,7 +64,7 @@ public class Fence implements Listener {
             }
         }
         if (boundAny) {
-            e.getPlayer().sendMessage("§d小宠物乖乖呆在这里了=v=");
+            e.getPlayer().sendMessage("§dYour leashed player is now tied to this fence.");
         }
     }
 
@@ -114,7 +114,7 @@ public class Fence implements Listener {
 
 
         leash.startLeashTask(master, target); // 恢复跟随
-        master.sendMessage("§d继续带着小宠物玩=v=");
+        master.sendMessage("§dLeash restored. Your player follows you again.");
     }
 
     public void startFenceLeashTask(UUID sUUID, UUID mUUID, Location fenceLocation) {

@@ -60,7 +60,8 @@ public class leash implements Listener {
             // 启动绑定状态下的效果任务
             startLeashTask(s, m);
             // 提示消息
-            s.sendMessage("§d你拴住了 " + ChatColor.AQUA + m.getName() + " §d现在她是你的了！");
+            s.sendMessage(ChatColor.LIGHT_PURPLE + "You leashed " + ChatColor.AQUA + m.getName()
+                    + ChatColor.LIGHT_PURPLE + ".");
         }
 
         // ----------- 使用剑解除绑定逻辑 -----------
@@ -91,7 +92,7 @@ public class leash implements Listener {
                 clearLeashTask(mUUID);
 
                 // 提示消息
-                s.sendMessage(ChatColor.RED + "你抛弃了 " + ChatColor.AQUA + m.getName() + ChatColor.RED + "，她现在只能流浪了");
+                s.sendMessage(ChatColor.RED + "You unleashed " + ChatColor.AQUA + m.getName() + ChatColor.RED + ".");
             }
         }
     }
@@ -159,7 +160,7 @@ public class leash implements Listener {
                                 // 超过 3 秒，提醒主人仆从被卡住了
                                 String petName = m.getName();
                                 s.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                                        new TextComponent("§e你的小宠物 §d" + petName + " §e似乎被卡住了喵！"));
+                                        new TextComponent("§eYour leashed player §d" + petName + " §eseems stuck!"));
                                 Helper.removeLeash(m.getUniqueId());
                                 stuckStartTime[0] = 0; // 重置计时器
                             }

@@ -18,7 +18,7 @@ import static nc.SoulLeash.leashMap;
 public class BoneControl implements Listener {
 
     private static final Pattern COLOR_PATTERN = Pattern.compile("(?i)(§[0-9A-FK-ORX]|&#[a-fA-F0-9]{6})");
-    private static final Pattern PREFIX_SUFFIX_PATTERN = Pattern.compile("^(喵~|\\[.+?])|喵~$");
+    private static final Pattern PREFIX_SUFFIX_PATTERN = Pattern.compile("^(meow~|\\[.+?])|meow~$");
 
     private boolean isMasterOf(UUID master, UUID servant) {
         return leashMap.containsKey(master) && leashMap.get(master).contains(servant);
@@ -66,13 +66,13 @@ public class BoneControl implements Listener {
                 }
             }
             inv.setHelmet(getCursedBone());
-            master.sendMessage("§e呜呜呜不能说话了qwq");
+            master.sendMessage("§eMuted with Bone Curse.");
 
         } else if (hand.getType() == Material.SHEARS) {
             if (isWearingBone(servant)) {
                 servant.getInventory().setHelmet(null);
                 servant.getWorld().playSound(servant.getLocation(), Sound.ENTITY_SHEEP_SHEAR, 1, 1.2f);
-                master.sendMessage("§a可以乖乖说话了owo");
+                master.sendMessage("§aBone Curse removed.");
             }
         }
     }
@@ -89,7 +89,7 @@ public class BoneControl implements Listener {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < msg.length(); i++) {
-            sb.append("喵");
+            sb.append("meow");
         }
 
         event.setMessage(sb.toString());
@@ -109,7 +109,7 @@ public class BoneControl implements Listener {
                 original = COLOR_PATTERN.matcher(original).replaceAll("");
                 original = PREFIX_SUFFIX_PATTERN.matcher(original).replaceAll("");
 
-                String censored = "喵".repeat(original.length());
+                String censored = "meow".repeat(Math.max(1, original.length() / 2));
                 event.setMessage(parts[0] + " " + parts[1] + " " + censored);
             }
         }

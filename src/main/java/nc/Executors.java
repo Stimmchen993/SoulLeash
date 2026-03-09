@@ -37,7 +37,7 @@ public class Executors implements CommandExecutor, TabCompleter {
         // 判断是否为 reload 子命令
         if (args[0].equalsIgnoreCase("reload")) {
             main.reloadConfig(); // 重新加载 config.yml
-            sender.sendMessage("§a配置文件已重新加载！");
+            sender.sendMessage("§aSoulLeash config reloaded.");
             return true;
         }
 

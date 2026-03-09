@@ -62,7 +62,7 @@ public final class SoulLeash extends JavaPlugin {
 
 
 
-        getLogger().info("LeashPlayers 插件已成功加载！");
+        getLogger().info("SouiLeash loaded successfully.");
     }
 
 
@@ -72,7 +72,7 @@ public final class SoulLeash extends JavaPlugin {
             fence.saveFenceLeashData();
         }
         saveLeashData();
-        getLogger().info("LeashPlayers 插件已关闭！");
+        getLogger().info("SouiLeash has been disabled.");
 
     }
 

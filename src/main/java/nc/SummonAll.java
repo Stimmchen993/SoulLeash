@@ -30,7 +30,7 @@ public class SummonAll implements Listener {
 
         if (cooldownMap.containsKey(id) && now - cooldownMap.get(id) < CD) {
             long left = (CD - (now - cooldownMap.get(id))) / 1000;
-            p.sendMessage(ChatColor.RED + "冷却中哦，不要老想着传送，多在意一下你的小宝贝吧（还需 " + left + " 秒！）");
+            p.sendMessage(ChatColor.RED + "Summon is on cooldown (" + left + "s remaining).");
             return;
         }
 
@@ -51,6 +51,6 @@ public class SummonAll implements Listener {
         }
 
         cooldownMap.put(id, now);
-        p.sendMessage(ChatColor.GREEN + "你召唤了你的小宠物过来了=v=！");
+        p.sendMessage(ChatColor.GREEN + "You summoned your leashed players to your position.");
     }
 }

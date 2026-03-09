@@ -10,7 +10,7 @@ commands:
     usage: /<command> reload
     permission: leashplayers.admin
   oi:
-    description: 看向主人
+    description: Make leashed players look at their owner
     usage: /oi
     permission: leashplayers.use
 permissions:
@@ -19,8 +19,7 @@ permissions:
     default: op
   leashplayers.use:
     description: allow leash other player.
-    default: op
+    default: true
   leashplayers.leashable:
     description: allow to be leashed.
     default: not op
-

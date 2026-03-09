@@ -69,7 +69,7 @@ public class Listeners implements Listener {
             saveLeashData();
 
             startLeashTask(s, m);
-            s.sendMessage(ChatColor.GREEN + "你拴住了 " + ChatColor.AQUA + m.getName() + ChatColor.GREEN + "，现在她是你的了！");
+            s.sendMessage(ChatColor.GREEN + "You leashed " + ChatColor.AQUA + m.getName() + ChatColor.GREEN + ".");
 
         }
 
@@ -86,7 +86,7 @@ public class Listeners implements Listener {
                 saveLeashData();
 
                 clearLeashTask(mUUID);
-                s.sendMessage(ChatColor.RED + "你抛弃了 " + ChatColor.AQUA + m.getName() + ChatColor.RED + "，她现在只能流浪了");
+                s.sendMessage(ChatColor.RED + "You unleashed " + ChatColor.AQUA + m.getName() + ChatColor.RED + ".");
             }
         }
     }
@@ -189,7 +189,7 @@ public class Listeners implements Listener {
                                 // 超过 3 秒，发送提示信息
                                 String petName = m.getName();
                                 s.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                                        new TextComponent("§e你的小宠物 §d" + petName + " §e似乎被卡住了喵！"));
+                                        new TextComponent("§eYour leashed player §d" + petName + " §eseems stuck!"));
                                 stuckStartTime[0] = 0; // 重置计时器
                             }
                         } else {
