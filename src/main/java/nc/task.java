@@ -27,6 +27,9 @@ public class task implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
+                if (!Settings.featureLeashEffects()) {
+                    return;
+                }
                 // 遍历所有主人 UUID
                 for (UUID masterUUID : leashMap.keySet()) {
                     // 获取在线的主人玩家对象
@@ -56,7 +59,7 @@ public class task implements Listener {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 40L); // 立即启动，每 40 tick（2 秒）执行一次
+        }.runTaskTimer(plugin, 0L, Settings.leashEffectPeriodTicks()); // 立即启动，每 40 tick（2 秒）执行一次
     }
 
     @EventHandler
@@ -82,7 +85,9 @@ public class task implements Listener {
                     if (m != null && m.isOnline()) { // 如果 M 在线
                         // 恢复绑定任务，让 M 跟随 S
                         startLeashTask(player, m);
-                        m.teleport(player.getLocation()); // 将 M 传送到 S 的位置
+                        if (Settings.featureCrossWorldSync()) {
+                            m.teleport(player.getLocation()); // 将 M 传送到 S 的位置
+                        }
                         Helper.attachLeash(m, player);
                     }
                 }
@@ -97,14 +102,16 @@ public class task implements Listener {
                 if (s != null && s.isOnline()) { // 如果 S 在线
                     // 恢复绑定任务，让 M 跟随 S
                     startLeashTask(s, player);
-                    player.teleport(s.getLocation()); // 将 M 传送到 S 的位置
+                    if (Settings.featureCrossWorldSync()) {
+                        player.teleport(s.getLocation()); // 将 M 传送到 S 的位置
+                    }
                 }
 
                 // 清除 pendingTeleport 中的记录
                 leashDataConfig.set("pendingTeleport." + playerUUID, null);
             }
             instance.saveLeashData(); // 确保数据被保存
-        }, 20L); // 延迟 1 秒执行
+        }, Settings.joinResyncDelayTicks()); // 延迟 1 秒执行
     }
 
     @EventHandler
@@ -149,7 +156,7 @@ public class task implements Listener {
             // 检查是否有任何主人绑定了这个玩家
             if (leashMap.values().stream().anyMatch(list -> list.contains(playerUUID))) {
                 // 如果伤害来源是摔落（Fall Damage），则取消伤害
-                if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+                if (Settings.featureFallDamageProtection() && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
                     event.setCancelled(true); // 取消摔落伤害
                 }
             }

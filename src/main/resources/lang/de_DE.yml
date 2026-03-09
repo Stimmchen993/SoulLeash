@@ -3,12 +3,23 @@ plugin:
   disabled: "&cSouiLeash wurde deaktiviert."
 
 command:
-  usage: "&eNutzung: &f/leashplayers reload &7oder &f/leashplayers lang <en_US|de_DE>"
+  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug>"
+  no_permission: "&cDir fehlt die Berechtigung: &f{permission}"
   reload:
     success: "&aSouiLeash-Konfiguration neu geladen. Aktive Sprache: &f{lang}&a."
   lang:
     current: "&aAktuelle Sprache: &f{lang}&a."
     set: "&aSprache aktualisiert. Aktive Sprache: &f{lang}&a."
+  status:
+    header: "&6[SouiLeash] &eStatus"
+    language: "&7Sprache: &f{lang}"
+    permissions: "&7Rechte: &fadmin={admin} &7use=&f{use} &7leashable=&f{leashable}"
+    features: "&7Funktionen: &fleash={leash} &7follow={follow} &7effects={effects} &7summon={summon} &7fence={fence} &7bone={bone} &7food={food} &7look={look} &7portal={portal} &7respawn={respawn} &7crossworld={crossworld} &7fall={falldamage}"
+  debug:
+    header: "&6[SouiLeash] &eDebug"
+    stats: "&7Status: &fmasters={masters} &7links={links} &7tasks={tasks} &7fenceBound={fence} &7pendingTeleport={pending}"
+    leash_tuning: "&7Leash-Werte: &fperiod={period}t &7tp={teleport} &7hard={hard} &7mid={medium} &7soft={soft}"
+    sync_tuning: "&7Sync-Werte: &fjoinDelay={join}t &7portalDelay={portal}t &7effectPeriod={effects}t &7summonCd={summon}s &7foodCd={foodcooldown}ms"
 
 leash:
   bound: "&dDu hast &b{player} &dangeleint."

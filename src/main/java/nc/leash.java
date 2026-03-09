@@ -23,6 +23,7 @@ public class leash implements Listener {
     // 玩家右键其他实体事件（用于绑定或解绑玩家）
     @EventHandler
     public void onLeash(PlayerInteractAtEntityEvent e) {
+        if (!Settings.featureLeashInteractions()) return;
         // 如果右键的不是玩家，直接返回
         if (!(e.getRightClicked() instanceof Player)) return;
         // 只处理主手的交互（防止副手触发）
@@ -34,8 +35,8 @@ public class leash implements Listener {
         Player m = (Player) e.getRightClicked();
 
         // 权限检查：s 必须拥有使用权限，m 必须允许被拴住
-        if (!s.hasPermission("leashplayers.use")) return;
-        if (!m.hasPermission("leashplayers.leashable")) return;
+        if (!s.hasPermission(Settings.permissionUse())) return;
+        if (!m.hasPermission(Settings.permissionLeashable())) return;
 
         UUID sUUID = s.getUniqueId(); // 主人的 UUID
         UUID mUUID = m.getUniqueId(); // 被拴者的 UUID
@@ -96,6 +97,9 @@ public class leash implements Listener {
     }
     // 启动一个任务让 M（仆从）始终跟随 S（主人）
     static void startLeashTask(Player s, Player m) {
+        if (!Settings.featureLeashFollowTask()) {
+            return;
+        }
         if (getFenceLeashManager().isPlayerOnFence(m)) {
             return; // 取消传送或传送逻辑
         }
@@ -143,7 +147,7 @@ public class leash implements Listener {
                 double distance = sLoc.distance(mLoc);
 
                 // 卡住检测逻辑：检测 M 是否卡住，若卡住超过 3 秒，发送提示
-                if (distance > 7) {
+                if (Settings.leashStuckEnabled() && distance > Settings.leashStuckCheckDistanceMin()) {
                     if (lastLocation[0] != null) {
                         double movementXZ = Math.sqrt(Math.pow(lastLocation[0].getX() - mLoc.getX(), 1) +
                                 Math.pow(lastLocation[0].getZ() - mLoc.getZ(), 1));
@@ -151,10 +155,12 @@ public class leash implements Listener {
                         double approach = sLoc.distance(lastLocation[0]) - distance;
 
                         // 如果 M 卡住且未移动超过 3 秒，发送提示信息
-                        if (movementXZ < 0.1 && approach < 0.1 && deltaY <= 3.0) {
+                        if (movementXZ < Settings.leashStuckMovementXZMax()
+                                && approach < Settings.leashStuckApproachMax()
+                                && deltaY <= Settings.leashStuckDeltaYMax()) {
                             if (stuckStartTime[0] == 0) {
                                 stuckStartTime[0] = System.currentTimeMillis(); // 开始计时
-                            } else if (System.currentTimeMillis() - stuckStartTime[0] > 3000) {
+                            } else if (System.currentTimeMillis() - stuckStartTime[0] > Settings.leashStuckTimeoutMs()) {
                                 // 超过 3 秒，提醒主人仆从被卡住了
                                 String petName = m.getName();
                                 s.spigot().sendMessage(ChatMessageType.ACTION_BAR,
@@ -170,18 +176,18 @@ public class leash implements Listener {
 
                 // 强制拉动逻辑，根据距离调整 M 的速度
                 Vector pull = null;
-                if (distance > 48) {
+                if (distance > Settings.leashTeleportDistance()) {
                     m.teleport(sLoc); // 超远距离时直接传送
                     Helper.attachLeash(m, s);
-                } else if (distance > 7 && m.isOnGround()) {
-                    m.setVelocity(m.getVelocity().setY(0.3)); // 如果在地面，拉起 M
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(0.3); // 拉力
-                } else if (distance > 6) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(0.2); // 拉力减少
-                } else if (distance > 5.5) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(0.15);
-                } else if (distance > 5) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(0.1);
+                } else if (distance > Settings.leashPullHardDistance() && m.isOnGround()) {
+                    m.setVelocity(m.getVelocity().setY(Settings.leashPullGroundYBoost())); // 如果在地面，拉起 M
+                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullGroundStrength()); // 拉力
+                } else if (distance > Settings.leashPullMediumDistance()) {
+                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullHardStrength()); // 拉力减少
+                } else if (distance > Settings.leashPullSoftDistance()) {
+                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullMediumStrength());
+                } else if (distance > Settings.leashPullStartDistance()) {
+                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullSoftStrength());
                 }
 
                 // 如果需要拉动 M，则添加拉力
@@ -195,7 +201,7 @@ public class leash implements Listener {
         };
 
         // 启动任务，每 tick 执行一次
-        task.runTaskTimer(instance, 0, 1);
+        task.runTaskTimer(instance, 0, Settings.leashTaskPeriodTicks());
         leashTasks.put(m.getUniqueId(), task); // 将任务存入 leashTasks
     }
 

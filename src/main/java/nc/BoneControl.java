@@ -38,6 +38,7 @@ public class BoneControl implements Listener {
 
     @EventHandler
     public void onRightClick(PlayerInteractEntityEvent event) {
+        if (!Settings.featureBoneControl()) return;
         if (!(event.getRightClicked() instanceof Player)) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
@@ -79,6 +80,7 @@ public class BoneControl implements Listener {
 
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
+        if (!Settings.featureBoneControl()) return;
         Player p = event.getPlayer();
         if (!isWearingBone(p)) return;
 
@@ -97,6 +99,7 @@ public class BoneControl implements Listener {
 
     @EventHandler
     public void onMsg(PlayerCommandPreprocessEvent event) {
+        if (!Settings.featureBoneControl()) return;
         Player p = event.getPlayer();
         String msg = event.getMessage();
         if (!isWearingBone(p)) return;

@@ -31,6 +31,11 @@ public class Executors implements CommandExecutor, TabCompleter {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission(Settings.permissionAdmin())) {
+            Lang.send(sender, "command.no_permission", "permission", Settings.permissionAdmin());
+            return true;
+        }
+
         if (args.length == 0) {
             Lang.send(sender, "command.usage");
             return true;
@@ -38,6 +43,7 @@ public class Executors implements CommandExecutor, TabCompleter {
 
         if (args[0].equalsIgnoreCase("reload")) {
             main.reloadConfig();
+            Settings.reload();
             Lang.reload();
             Lang.send(sender, "command.reload.success", "lang", Lang.getCurrentLanguage());
             return true;
@@ -57,6 +63,16 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("status")) {
+            sendStatus(sender);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("debug")) {
+            sendDebug(sender);
+            return true;
+        }
+
         Lang.send(sender, "command.usage");
         return true;
     }
@@ -73,7 +89,7 @@ public class Executors implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
-            StringUtil.copyPartialMatches(args[0], Arrays.asList("reload", "lang"), completions);
+            StringUtil.copyPartialMatches(args[0], Arrays.asList("reload", "lang", "status", "debug"), completions);
             return completions;
         }
 
@@ -82,5 +98,60 @@ public class Executors implements CommandExecutor, TabCompleter {
         }
 
         return completions;
+    }
+
+    private void sendStatus(CommandSender sender) {
+        Lang.send(sender, "command.status.header");
+        Lang.send(sender, "command.status.language", "lang", Lang.getCurrentLanguage());
+        Lang.send(sender, "command.status.permissions",
+                "admin", Settings.permissionAdmin(),
+                "use", Settings.permissionUse(),
+                "leashable", Settings.permissionLeashable());
+
+        Lang.send(sender, "command.status.features",
+                "leash", onOff(Settings.featureLeashInteractions()),
+                "follow", onOff(Settings.featureLeashFollowTask()),
+                "effects", onOff(Settings.featureLeashEffects()),
+                "summon", onOff(Settings.featureSummonStar()),
+                "fence", onOff(Settings.featureFenceBinding()),
+                "bone", onOff(Settings.featureBoneControl()),
+                "food", onOff(Settings.featureFoodShare()),
+                "look", onOff(Settings.featureLookatTotem()),
+                "portal", onOff(Settings.featurePortalSync()),
+                "respawn", onOff(Settings.featureRespawnSync()),
+                "crossworld", onOff(Settings.featureCrossWorldSync()),
+                "falldamage", onOff(Settings.featureFallDamageProtection()));
+    }
+
+    private void sendDebug(CommandSender sender) {
+        int masters = SoulLeash.leashMap.size();
+        int links = SoulLeash.leashMap.values().stream().mapToInt(List::size).sum();
+        int followTasks = SoulLeash.leashTasks.size();
+        int pendingTeleport = SoulLeash.getPendingTeleportCount();
+        int fenceBound = Fence.getFenceBoundCount();
+
+        Lang.send(sender, "command.debug.header");
+        Lang.send(sender, "command.debug.stats",
+                "masters", masters,
+                "links", links,
+                "tasks", followTasks,
+                "fence", fenceBound,
+                "pending", pendingTeleport);
+        Lang.send(sender, "command.debug.leash_tuning",
+                "period", Settings.leashTaskPeriodTicks(),
+                "teleport", Settings.leashTeleportDistance(),
+                "hard", Settings.leashPullHardDistance(),
+                "medium", Settings.leashPullMediumDistance(),
+                "soft", Settings.leashPullSoftDistance());
+        Lang.send(sender, "command.debug.sync_tuning",
+                "join", Settings.joinResyncDelayTicks(),
+                "portal", Settings.portalFollowDelayTicks(),
+                "effects", Settings.leashEffectPeriodTicks(),
+                "summon", Settings.summonCooldownSeconds(),
+                "foodcooldown", Settings.foodShareCooldownMs());
+    }
+
+    private String onOff(boolean value) {
+        return value ? "ON" : "OFF";
     }
 }

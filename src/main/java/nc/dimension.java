@@ -18,6 +18,7 @@ import static nc.SoulLeash.leashMap;
 public class dimension implements Listener {
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent e) {
+        if (!Settings.featureCrossWorldSync()) return;
 
         Player s = e.getPlayer(); // 获取传送的玩家（S）
         UUID sUUID = s.getUniqueId(); // 获取玩家的唯一 ID
@@ -27,10 +28,10 @@ public class dimension implements Listener {
             List<UUID> mUUIDs = leashMap.get(sUUID); // 获取与 S 绑定的所有 M（仆从） UUID
             for (UUID mUUID : mUUIDs) {
                 Player m = Bukkit.getPlayer(mUUID); // 获取每个 M 的玩家对象
-                if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
-                    return; // 取消传送或传送逻辑
-                }
                 if (m != null && m.isOnline()) { // 如果 M 在线
+                    if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
+                        continue;
+                    }
                     Location destination = e.getTo(); // 获取传送的目的地
                     if (destination != null && !destination.getWorld().equals(m.getWorld())) {
                         // 如果目的地的世界与 M 所在世界不同，进行传送
@@ -62,6 +63,7 @@ public class dimension implements Listener {
     // 监听玩家进入传送门事件，确保绑定关系不受影响
     @EventHandler
     public void onPlayerPortal(PlayerPortalEvent e) {
+        if (!Settings.featurePortalSync()) return;
         Player player = e.getPlayer();                // 获取触发传送门事件的玩家对象
         UUID playerUUID = player.getUniqueId();       // 获取玩家的唯一 ID
 
@@ -70,12 +72,12 @@ public class dimension implements Listener {
             List<UUID> mUUIDs = leashMap.get(playerUUID);  // 获取与 S 绑定的所有 M（仆从）UUID
             for (UUID mUUID : mUUIDs) {
                 Player m = Bukkit.getPlayer(mUUID);    // 获取每个 M 的玩家对象
-                if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
-                    return; // 取消传送或传送逻辑
-                }
                 if (m != null && m.isOnline()) {       // 如果 M 在线
+                    if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
+                        continue;
+                    }
                     // 延迟 10 tick 后将 M 传送到 S 传送门的目的地
-                    Bukkit.getScheduler().runTaskLater(instance, () -> m.teleport(player.getLocation()), 10L);
+                    Bukkit.getScheduler().runTaskLater(instance, () -> m.teleport(player.getLocation()), Settings.portalFollowDelayTicks());
                 }
             }
         }
@@ -87,7 +89,7 @@ public class dimension implements Listener {
                 Player s = Bukkit.getPlayer(sUUID);     // 获取 S 的玩家对象
                 if (s != null && s.isOnline()) {        // 如果 S 在线
                     // 延迟 10 tick 后将 M 传送到 S 的位置
-                    Bukkit.getScheduler().runTaskLater(instance, () -> player.teleport(s.getLocation()), 10L);
+                    Bukkit.getScheduler().runTaskLater(instance, () -> player.teleport(s.getLocation()), Settings.portalFollowDelayTicks());
                 }
                 break;  // 找到后跳出循环
             }

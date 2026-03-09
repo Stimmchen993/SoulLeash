@@ -18,16 +18,14 @@ import static nc.SoulLeash.leashMap;
 
 public class FoodShare implements Listener {
 
-    private final SoulLeash plugin;
-    private final long COOLDOWN_TIME = 1000L; // 1秒冷却时间
     private final Map<UUID, Long> playerCooldowns = new java.util.HashMap<>();
 
     public FoodShare(SoulLeash plugin) {
-        this.plugin = plugin;
     }
 
     @EventHandler
     public void onFeedPartner(PlayerInteractEntityEvent event) {
+        if (!Settings.featureFoodShare()) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Player player = event.getPlayer();
@@ -65,7 +63,7 @@ public class FoodShare implements Listener {
         // 🕒 冷却判断
         if (playerCooldowns.containsKey(playerUUID)) {
             long lastActionTime = playerCooldowns.get(playerUUID);
-            if (System.currentTimeMillis() - lastActionTime < COOLDOWN_TIME) {
+            if (System.currentTimeMillis() - lastActionTime < Settings.foodShareCooldownMs()) {
                 return;
             }
         }

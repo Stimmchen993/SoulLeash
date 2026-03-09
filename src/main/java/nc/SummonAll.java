@@ -21,6 +21,7 @@ public class SummonAll implements Listener {
 
     @EventHandler
     public void onUseStar(PlayerInteractEvent e) {
+        if (!Settings.featureSummonStar()) return;
         if (e.getHand() != EquipmentSlot.HAND) return;
 
         Player p = e.getPlayer();
@@ -58,7 +59,6 @@ public class SummonAll implements Listener {
     }
 
     private long getCooldownMillis() {
-        long seconds = SoulLeash.getInstance().getConfig().getLong("settings.summon-cooldown-seconds", 600L);
-        return Math.max(1L, seconds) * 1000L;
+        return Settings.summonCooldownSeconds() * 1000L;
     }
 }

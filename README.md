@@ -36,6 +36,23 @@ leashplayers.use — Allows using leads on players
 
 leashplayers.leashable — Allows being leashed by others
 
+## New in Stardust overhaul (local branch)
+
+- Reloadable language files in `plugins/SouiLeash/lang/` (`en_US`, `de_DE`)
+- Configurable permissions in `config.yml`:
+  - `permissions.admin`
+  - `permissions.use`
+  - `permissions.leashable`
+- Feature toggles in `config.yml` under `features.*`
+- Tunable timings and leash/fence behavior in `sync.*`, `leash.*`, `fence.*`, `food-share.*`
+
+Admin command:
+
+- `/leashplayers reload`
+- `/leashplayers lang <en_US|de_DE>`
+- `/leashplayers status`
+- `/leashplayers debug`
+
 
 # SoulLeash
 

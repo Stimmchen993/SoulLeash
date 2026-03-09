@@ -21,6 +21,7 @@ public class Lookat implements Listener{
     // 玩家右键使用特定物品（这里是不死图腾）时触发的事件
     @EventHandler
     public void onCherryButtonRightClick(PlayerInteractEvent event) {
+        if (!Settings.featureLookatTotem()) return;
         // 只处理主手的点击事件（防止副手触发两次）
         if (event.getHand() != EquipmentSlot.HAND) return;
 

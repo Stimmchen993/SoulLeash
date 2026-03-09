@@ -30,6 +30,7 @@ public final class SoulLeash extends JavaPlugin {
         }
         instance = this;  // 插件实例化
         saveDefaultConfig(); // 保存默认配置
+        Settings.init(this);
         Lang.init(this);
 
         // 初始化所有必要的数据
@@ -163,6 +164,13 @@ public final class SoulLeash extends JavaPlugin {
     // 获取 Fence 实例
     public static Fence getFenceLeashManager() {
         return fence;
+    }
+
+    public static int getPendingTeleportCount() {
+        if (leashDataConfig == null || !leashDataConfig.isConfigurationSection("pendingTeleport")) {
+            return 0;
+        }
+        return leashDataConfig.getConfigurationSection("pendingTeleport").getKeys(false).size();
     }
 
 }

@@ -2,6 +2,72 @@
 # Built-in options: en_US, de_DE
 language: en_US
 
+permissions:
+  admin: leashplayers.admin
+  use: leashplayers.use
+  leashable: leashplayers.leashable
+
+features:
+  leash-interactions: true
+  leash-follow-task: true
+  leash-effects: true
+  cross-world-sync: true
+  respawn-sync: true
+  portal-sync: true
+  fall-damage-protection: true
+  summon-star: true
+  food-share: true
+  bone-control: true
+  fence-binding: true
+  lookat-totem: true
+
 settings:
   # Cooldown for the Nether Star summon feature.
   summon-cooldown-seconds: 600
+
+sync:
+  join-resync-delay-ticks: 20
+  portal-follow-delay-ticks: 10
+  leash-effect-task-period-ticks: 40
+
+food-share:
+  cooldown-ms: 1000
+
+leash:
+  follow:
+    task-period-ticks: 1
+    thresholds:
+      pull-start: 5.0
+      pull-soft: 5.5
+      pull-medium: 6.0
+      pull-hard: 7.0
+      teleport: 48.0
+    strengths:
+      soft: 0.1
+      medium: 0.15
+      hard: 0.2
+      ground-hard: 0.3
+      ground-y-boost: 0.3
+    stuck-detector:
+      enabled: true
+      check-distance-min: 7.0
+      movement-xz-max: 0.1
+      approach-max: 0.1
+      delta-y-max: 3.0
+      timeout-ms: 3000
+
+fence:
+  follow:
+    task-period-ticks: 1
+    thresholds:
+      pull-start: 5.0
+      pull-soft: 5.5
+      pull-medium: 6.0
+      pull-hard: 7.0
+      teleport: 48.0
+    strengths:
+      soft: 0.2
+      medium: 0.3
+      hard: 0.4
+      ground-hard: 0.5
+      ground-y-boost: 0.3

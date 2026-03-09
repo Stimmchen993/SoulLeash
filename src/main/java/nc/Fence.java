@@ -41,6 +41,7 @@ public class Fence implements Listener {
     // 主人空手点栅栏，绑定所有他的从者到该处
     @EventHandler
     public void onPlayerRightClickFence(PlayerInteractEvent e) {
+        if (!Settings.featureFenceBinding()) return;
         if (e.getHand() != EquipmentSlot.HAND) return;
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         if (e.getClickedBlock() == null || !isFence(e.getClickedBlock().getType())) return;
@@ -71,6 +72,7 @@ public class Fence implements Listener {
     // 解除栅栏绑定并恢复跟随
     @EventHandler
     public void onRightClickPlayer(PlayerInteractEntityEvent event) {
+        if (!Settings.featureFenceBinding()) return;
         if (!(event.getRightClicked() instanceof Player)) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
@@ -118,6 +120,7 @@ public class Fence implements Listener {
     }
 
     public void startFenceLeashTask(UUID sUUID, UUID mUUID, Location fenceLocation) {
+        if (!Settings.featureFenceBinding()) return;
         // 先取消之前的任务
         if (leashTasks.containsKey(mUUID)) {
             leashTasks.get(mUUID).cancel();
@@ -143,20 +146,20 @@ public class Fence implements Listener {
                 double distance = mLoc.distance(fenceLocation);
 
                 // 如果玩家距离栅栏超过48格，直接传送
-                if (distance > 48) {
+                if (distance > Settings.fenceTeleportDistance()) {
                     m.teleport(fenceLocation); // 超远距离直接传送
-                } else if (distance > 5) {
+                } else if (distance > Settings.fencePullStartDistance()) {
                     // 如果玩家距离栅栏在5到7格之间，施加推力
                     @NotNull Vector pull;
-                    if (distance > 7 && m.isOnGround()) {
-                        m.setVelocity(m.getVelocity().setY(0.3)); // 适当的向上推力
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(0.5);
-                    } else if (distance > 6) {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(0.4);
-                    } else if (distance > 5.5) {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(0.3);
+                    if (distance > Settings.fencePullHardDistance() && m.isOnGround()) {
+                        m.setVelocity(m.getVelocity().setY(Settings.fencePullGroundYBoost())); // 适当的向上推力
+                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullGroundStrength());
+                    } else if (distance > Settings.fencePullMediumDistance()) {
+                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullHardStrength());
+                    } else if (distance > Settings.fencePullSoftDistance()) {
+                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullMediumStrength());
                     } else {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(0.2);
+                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullSoftStrength());
                     }
                     m.setVelocity(pull); // 向栅栏拉近
                 }
@@ -164,7 +167,7 @@ public class Fence implements Listener {
         };
 
         // 每 1 tick 执行一次
-        task.runTaskTimer(instance, 0L, 1L);
+        task.runTaskTimer(instance, 0L, Settings.fenceTaskPeriodTicks());
         leashTasks.put(mUUID, task);
     }
 
@@ -232,7 +235,7 @@ public class Fence implements Listener {
     }
 
     public boolean isPlayerOnFence(Player player) {
-        return fenceBoundPlayers.containsKey(player.getUniqueId());
+        return player != null && fenceBoundPlayers.containsKey(player.getUniqueId());
     }
 
 
@@ -305,6 +308,10 @@ public class Fence implements Listener {
         if (master != null && member != null && master.isOnline() && member.isOnline()) {
             leash.startLeashTask(master, member);
         }
+    }
+
+    public static int getFenceBoundCount() {
+        return fenceBoundPlayers.size();
     }
 
 
