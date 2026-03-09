@@ -81,6 +81,10 @@ public final class Settings {
         return config.getBoolean("features.lookat-totem", true);
     }
 
+    public static boolean featureChoreMode() {
+        return config.getBoolean("features.chore-mode", true);
+    }
+
     public static int joinResyncDelayTicks() {
         return Math.max(1, config.getInt("sync.join-resync-delay-ticks", 20));
     }
@@ -243,5 +247,33 @@ public final class Settings {
 
     public static double fencePullGroundYBoost() {
         return config.getDouble("fence.follow.strengths.ground-y-boost", 0.3);
+    }
+
+    public static boolean chorePrivateMessagesDefault() {
+        return config.getBoolean("chore.defaults.private-messages", true);
+    }
+
+    public static long choreTeaseIntervalMs() {
+        return Math.max(1000L, config.getLong("chore.defaults.tease-interval-ms", 12000L));
+    }
+
+    public static long choreTugIntervalMs() {
+        return Math.max(1000L, config.getLong("chore.defaults.tug-interval-ms", 10000L));
+    }
+
+    public static long choreLookIntervalMs() {
+        return Math.max(1000L, config.getLong("chore.defaults.look-interval-ms", 8000L));
+    }
+
+    public static long choreCareIntervalMs() {
+        return Math.max(500L, config.getLong("chore.defaults.care-interval-ms", 6000L));
+    }
+
+    public static int choreMaxMinutes() {
+        return Math.max(1, config.getInt("chore.defaults.max-minutes", 180));
+    }
+
+    public static int choreMaxTasks() {
+        return Math.max(1, config.getInt("chore.defaults.max-tasks", 30));
     }
 }

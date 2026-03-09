@@ -20,6 +20,7 @@ features:
   bone-control: true
   fence-binding: true
   lookat-totem: true
+  chore-mode: true
 
 settings:
   # Cooldown for the Nether Star summon feature.
@@ -80,3 +81,13 @@ fence:
       hard: 0.4
       ground-hard: 0.5
       ground-y-boost: 0.3
+
+chore:
+  defaults:
+    private-messages: true
+    tease-interval-ms: 12000
+    tug-interval-ms: 10000
+    look-interval-ms: 8000
+    care-interval-ms: 6000
+    max-minutes: 180
+    max-tasks: 30

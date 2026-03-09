@@ -65,6 +65,11 @@ Admin command:
 - `/leashplayers test reset`
 - `/leashplayers test run basic`
 - `/leashplayers test mirror <start|stop|tug>`
+- `/leashplayers chore start <player> minutes <value>`
+- `/leashplayers chore start <player> tasks <value>`
+- `/leashplayers chore add <player> <mine|gather|kill|deliver> <target> <count>`
+- `/leashplayers chore status <player>`
+- `/leashplayers chore stop <player>`
 
 ## Build (local)
 

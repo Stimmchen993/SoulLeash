@@ -3,7 +3,7 @@ plugin:
   disabled: "&cSouiLeash has been disabled."
 
 command:
-  usage: "&eUsage: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test>"
+  usage: "&eUsage: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test|chore>"
   no_permission: "&cYou do not have permission: &f{permission}"
   players_only: "&cThis command can only be used by players."
   player_not_found: "&cPlayer not found: &f{player}"
@@ -22,7 +22,7 @@ command:
     header: "&6[SouiLeash] &eStatus"
     language: "&7Language: &f{lang}"
     permissions: "&7Permissions: &fadmin={admin} &7use=&f{use} &7leashable=&f{leashable}"
-    features: "&7Features: &fleash={leash} &7follow={follow} &7effects={effects} &7summon={summon} &7fence={fence} &7bone={bone} &7food={food} &7look={look} &7portal={portal} &7respawn={respawn} &7crossworld={crossworld} &7fall={falldamage}"
+    features: "&7Features: &fleash={leash} &7follow={follow} &7effects={effects} &7summon={summon} &7fence={fence} &7bone={bone} &7food={food} &7look={look} &7chore={chore} &7portal={portal} &7respawn={respawn} &7crossworld={crossworld} &7fall={falldamage}"
   debug:
     header: "&6[SouiLeash] &eDebug"
     stats: "&7State: &fmasters={masters} &7links={links} &7tasks={tasks} &7fenceBound={fence} &7pendingTeleport={pending}"
@@ -38,6 +38,19 @@ command:
     mirror_started: "&aMirror mode started. Your test subject now applies leash pull to you."
     mirror_stopped: "&eMirror mode stopped."
     mirror_tug: "&aMirror tug applied."
+  chore:
+    usage: "&eUsage: &f/leashplayers chore <start|stop|status|add> <player> [minutes|tasks <value>] [<type> <target> <count>]"
+    not_allowed: "&cYou can only start chore mode for yourself when unleashed, or for players you currently own."
+    started_target: "&dTaskmaster has started your chore mode (issued by &f{issuer}&d)."
+    started_issuer: "&aStarted chore mode for &b{player}&a."
+    stopped: "&eChore mode stopped."
+    completed: "&aChore mode complete. Taskmaster released your leash."
+    none: "&cNo active chore mode session for that player."
+    status: "&7Chore status: &f{status}"
+    task: "&6[Taskmaster] &eCurrent task: &f{task}"
+    task_added: "&aAdded custom task: &f{task}"
+    invalid_task: "&cInvalid custom task. Use mine/gather/deliver with materials, or kill with entity type."
+    start_failed: "&cFailed to start chore mode. Check player state and try again."
 
 leash:
   bound: "&dYou leashed &b{player}&d."

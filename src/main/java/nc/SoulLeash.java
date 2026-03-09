@@ -44,6 +44,7 @@ public final class SoulLeash extends JavaPlugin {
         leash.rebuildOwnershipIndex();
         leash.loadAdvancedState();
         leash.startOptOutComplianceTask();
+        ChoreModeManager.init(this);
 
         // 注册事件
         registerEvents();
@@ -73,6 +74,7 @@ public final class SoulLeash extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        ChoreModeManager.shutdown();
         SoloTestManager.shutdown();
         if (fence != null) {
             fence.saveFenceLeashData();

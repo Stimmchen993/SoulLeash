@@ -3,7 +3,7 @@ plugin:
   disabled: "&cSouiLeash wurde deaktiviert."
 
 command:
-  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test>"
+  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test|chore>"
   no_permission: "&cDir fehlt die Berechtigung: &f{permission}"
   players_only: "&cDieser Befehl kann nur von Spielern genutzt werden."
   player_not_found: "&cSpieler nicht gefunden: &f{player}"
@@ -22,7 +22,7 @@ command:
     header: "&6[SouiLeash] &eStatus"
     language: "&7Sprache: &f{lang}"
     permissions: "&7Rechte: &fadmin={admin} &7use=&f{use} &7leashable=&f{leashable}"
-    features: "&7Funktionen: &fleash={leash} &7follow={follow} &7effects={effects} &7summon={summon} &7fence={fence} &7bone={bone} &7food={food} &7look={look} &7portal={portal} &7respawn={respawn} &7crossworld={crossworld} &7fall={falldamage}"
+    features: "&7Funktionen: &fleash={leash} &7follow={follow} &7effects={effects} &7summon={summon} &7fence={fence} &7bone={bone} &7food={food} &7look={look} &7chore={chore} &7portal={portal} &7respawn={respawn} &7crossworld={crossworld} &7fall={falldamage}"
   debug:
     header: "&6[SouiLeash] &eDebug"
     stats: "&7Status: &fmasters={masters} &7links={links} &7tasks={tasks} &7fenceBound={fence} &7pendingTeleport={pending}"
@@ -38,6 +38,19 @@ command:
     mirror_started: "&aMirror-Modus gestartet. Das Testsubjekt zieht jetzt wie eine Leine an dir."
     mirror_stopped: "&eMirror-Modus gestoppt."
     mirror_tug: "&aMirror-Zug ausgeführt."
+  chore:
+    usage: "&eNutzung: &f/leashplayers chore <start|stop|status|add> <spieler> [minutes|tasks <wert>] [<typ> <ziel> <anzahl>]"
+    not_allowed: "&cDu kannst den Chore-Modus nur fuer dich selbst (wenn unleashed) oder fuer Spieler starten, die dir gehoeren."
+    started_target: "&dTaskmaster hat deinen Chore-Modus gestartet (von &f{issuer}&d)."
+    started_issuer: "&aChore-Modus fuer &b{player} &agestartet."
+    stopped: "&eChore-Modus gestoppt."
+    completed: "&aChore-Modus abgeschlossen. Taskmaster hat deine Leine geloest."
+    none: "&cKeine aktive Chore-Session fuer diesen Spieler."
+    status: "&7Chore-Status: &f{status}"
+    task: "&6[Taskmaster] &eAktuelle Aufgabe: &f{task}"
+    task_added: "&aEigene Aufgabe hinzugefuegt: &f{task}"
+    invalid_task: "&cUngueltige Aufgabe. Nutze mine/gather/deliver mit Material oder kill mit Entity-Typ."
+    start_failed: "&cChore-Modus konnte nicht gestartet werden. Pruefe den Spielerstatus und versuche es erneut."
 
 leash:
   bound: "&dDu hast &b{player} &dangeleint."

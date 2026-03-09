@@ -7,7 +7,7 @@ description: Allow to use lead on players!
 commands:
   leashplayers:
     description: Main SouiLeash command.
-    usage: /<command> <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test>
+    usage: /<command> <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test|chore>
     permission: leashplayers.admin
   oi:
     description: Make leashed players look at their owner

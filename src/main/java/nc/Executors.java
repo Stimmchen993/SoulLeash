@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public class Executors implements CommandExecutor, TabCompleter {
 
@@ -59,6 +60,18 @@ public class Executors implements CommandExecutor, TabCompleter {
             leash.clearCustomName(player.getUniqueId());
             Lang.send(sender, "leash.name_cleared", "player", player.getName());
             return true;
+        }
+
+        if (sub.equals("chore")) {
+            if (!(sender instanceof Player issuer)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            if (!issuer.hasPermission(Settings.permissionUse())) {
+                Lang.send(sender, "command.no_permission", "permission", Settings.permissionUse());
+                return true;
+            }
+            return handleChoreSubcommand(issuer, args);
         }
 
         if (!sender.hasPermission(Settings.permissionAdmin())) {
@@ -254,7 +267,7 @@ public class Executors implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
             StringUtil.copyPartialMatches(args[0], Arrays.asList(
-                    "reload", "lang", "status", "debug", "select", "temp", "permanent", "length", "anchor", "clearname", "test"
+                    "reload", "lang", "status", "debug", "select", "temp", "permanent", "length", "anchor", "clearname", "test", "chore"
             ), completions);
             return completions;
         }
@@ -294,6 +307,26 @@ public class Executors implements CommandExecutor, TabCompleter {
             }
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("chore")) {
+            StringUtil.copyPartialMatches(args[1], Arrays.asList("start", "stop", "status", "add"), completions);
+            return completions;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("chore")) {
+            StringUtil.copyPartialMatches(args[2], Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("start")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("minutes", "tasks"), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("add")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("mine", "gather", "kill", "deliver"), completions);
+            return completions;
+        }
+
         return completions;
     }
 
@@ -314,6 +347,7 @@ public class Executors implements CommandExecutor, TabCompleter {
                 "bone", onOff(Settings.featureBoneControl()),
                 "food", onOff(Settings.featureFoodShare()),
                 "look", onOff(Settings.featureLookatTotem()),
+                "chore", onOff(Settings.featureChoreMode()),
                 "portal", onOff(Settings.featurePortalSync()),
                 "respawn", onOff(Settings.featureRespawnSync()),
                 "crossworld", onOff(Settings.featureCrossWorldSync()),
@@ -414,5 +448,108 @@ public class Executors implements CommandExecutor, TabCompleter {
 
         Lang.send(player, "command.test.usage");
         return true;
+    }
+
+    private boolean handleChoreSubcommand(Player issuer, String[] args) {
+        if (args.length < 3) {
+            Lang.send(issuer, "command.chore.usage");
+            return true;
+        }
+
+        String action = args[1].toLowerCase(Locale.ROOT);
+        Player target = Bukkit.getPlayerExact(args[2]);
+        if (target == null) {
+            Lang.send(issuer, "command.player_not_found", "player", args[2]);
+            return true;
+        }
+
+        if (!canIssueChore(issuer, target) && !issuer.hasPermission(Settings.permissionAdmin())) {
+            Lang.send(issuer, "command.chore.not_allowed");
+            return true;
+        }
+
+        if (action.equals("status")) {
+            Lang.send(issuer, "command.chore.status", "status", ChoreModeManager.getStatus(target.getUniqueId()));
+            return true;
+        }
+
+        if (action.equals("stop")) {
+            if (ChoreModeManager.stop(target.getUniqueId(), "command.chore.stopped")) {
+                Lang.send(issuer, "command.chore.stopped");
+            } else {
+                Lang.send(issuer, "command.chore.none");
+            }
+            return true;
+        }
+
+        if (action.equals("start")) {
+            if (args.length < 5) {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+            String mode = args[3].toLowerCase(Locale.ROOT);
+            int value;
+            try {
+                value = Integer.parseInt(args[4]);
+            } catch (NumberFormatException ex) {
+                Lang.send(issuer, "command.invalid_number", "value", args[4]);
+                return true;
+            }
+
+            boolean ok;
+            if (mode.equals("minutes")) {
+                ok = ChoreModeManager.startRandomByMinutes(issuer, target, value);
+            } else if (mode.equals("tasks")) {
+                ok = ChoreModeManager.startRandomByTaskCount(issuer, target, value);
+            } else {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+
+            if (!ok) {
+                Lang.send(issuer, "command.chore.start_failed");
+            }
+            return true;
+        }
+
+        if (action.equals("add")) {
+            if (args.length < 6) {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+            String taskType = args[3];
+            String taskTarget = args[4];
+            int count;
+            try {
+                count = Integer.parseInt(args[5]);
+            } catch (NumberFormatException ex) {
+                Lang.send(issuer, "command.invalid_number", "value", args[5]);
+                return true;
+            }
+
+            ChoreModeManager.ChoreTask task = ChoreModeManager.parseCustomTask(taskType, taskTarget, count);
+            if (task == null) {
+                Lang.send(issuer, "command.chore.invalid_task");
+                return true;
+            }
+            if (!ChoreModeManager.addCustomTask(target.getUniqueId(), task)) {
+                Lang.send(issuer, "command.chore.none");
+                return true;
+            }
+            Lang.send(issuer, "command.chore.task_added", "task", task.describe());
+            return true;
+        }
+
+        Lang.send(issuer, "command.chore.usage");
+        return true;
+    }
+
+    private boolean canIssueChore(Player issuer, Player target) {
+        if (issuer.getUniqueId().equals(target.getUniqueId())) {
+            return !leash.isCurrentlyLeashed(target.getUniqueId()) && target.hasPermission(Settings.permissionLeashable());
+        }
+
+        UUID owner = leash.getOwner(target.getUniqueId());
+        return owner != null && owner.equals(issuer.getUniqueId());
     }
 }
