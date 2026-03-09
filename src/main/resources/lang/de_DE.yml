@@ -39,7 +39,7 @@ command:
     mirror_stopped: "&eMirror-Modus gestoppt."
     mirror_tug: "&aMirror-Zug ausgeführt."
   chore:
-    usage: "&eNutzung: &f/leashplayers chore <start|stop|status|add> <spieler> [minutes|tasks <wert>] [<typ> <ziel> <anzahl>]"
+    usage: "&eNutzung: &f/leashplayers chore <start|stop|status|add|chat|rename|preset> <spieler> ..."
     not_allowed: "&cDu kannst den Chore-Modus nur fuer dich selbst (wenn unleashed) oder fuer Spieler starten, die dir gehoeren."
     started_target: "&dTaskmaster hat deinen Chore-Modus gestartet (von &f{issuer}&d)."
     started_issuer: "&aChore-Modus fuer &b{player} &agestartet."
@@ -51,6 +51,12 @@ command:
     task_added: "&aEigene Aufgabe hinzugefuegt: &f{task}"
     invalid_task: "&cUngueltige Aufgabe. Nutze mine/gather/deliver mit Material oder kill mit Entity-Typ."
     start_failed: "&cChore-Modus konnte nicht gestartet werden. Pruefe den Spielerstatus und versuche es erneut."
+    invalid_chat_mode: "&cUngueltiger Chat-Modus. Nutze &fprivate &coder &fbroadcast&c."
+    invalid_rename_mode: "&cUngueltiger Rename-Modus. Nutze &foff&c, &fon&c oder &frandom&c."
+    invalid_preset: "&cUngueltiges Preset. Nutze &fbuilder&c, &fhunter&c, &ffarmer&c oder &fmessenger&c."
+    chat_set: "&aChore-Chatmodus auf &f{mode} &agesetzt."
+    rename_set: "&aChore-Rename-Modus auf &f{mode} &agesetzt."
+    preset_started: "&aPreset &f{preset} &afuer &f{rounds} &aRunden gestartet."
 
 leash:
   bound: "&dDu hast &b{player} &dangeleint."

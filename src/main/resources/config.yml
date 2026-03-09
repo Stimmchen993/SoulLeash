@@ -91,3 +91,27 @@ chore:
     care-interval-ms: 6000
     max-minutes: 180
     max-tasks: 30
+  rename:
+    random-non-owner: true
+    adjectives:
+      - Dusty
+      - Wayward
+      - Sleepy
+      - Lucky
+      - Stormy
+      - Swift
+      - Wobbly
+      - Shiny
+      - Brisk
+      - Bold
+    nouns:
+      - Comet
+      - Miner
+      - Courier
+      - Panda
+      - Runner
+      - Nomad
+      - Fox
+      - Builder
+      - Spark
+      - Tinker

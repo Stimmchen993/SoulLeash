@@ -2,6 +2,8 @@ package nc;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.util.List;
+
 public final class Settings {
     private static SoulLeash plugin;
     private static FileConfiguration config;
@@ -275,5 +277,17 @@ public final class Settings {
 
     public static int choreMaxTasks() {
         return Math.max(1, config.getInt("chore.defaults.max-tasks", 30));
+    }
+
+    public static boolean choreRandomRenameNonOwner() {
+        return config.getBoolean("chore.rename.random-non-owner", true);
+    }
+
+    public static List<String> choreRenameAdjectives() {
+        return config.getStringList("chore.rename.adjectives");
+    }
+
+    public static List<String> choreRenameNouns() {
+        return config.getStringList("chore.rename.nouns");
     }
 }

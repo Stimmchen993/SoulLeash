@@ -39,7 +39,7 @@ command:
     mirror_stopped: "&eMirror mode stopped."
     mirror_tug: "&aMirror tug applied."
   chore:
-    usage: "&eUsage: &f/leashplayers chore <start|stop|status|add> <player> [minutes|tasks <value>] [<type> <target> <count>]"
+    usage: "&eUsage: &f/leashplayers chore <start|stop|status|add|chat|rename|preset> <player> ..."
     not_allowed: "&cYou can only start chore mode for yourself when unleashed, or for players you currently own."
     started_target: "&dTaskmaster has started your chore mode (issued by &f{issuer}&d)."
     started_issuer: "&aStarted chore mode for &b{player}&a."
@@ -51,6 +51,12 @@ command:
     task_added: "&aAdded custom task: &f{task}"
     invalid_task: "&cInvalid custom task. Use mine/gather/deliver with materials, or kill with entity type."
     start_failed: "&cFailed to start chore mode. Check player state and try again."
+    invalid_chat_mode: "&cInvalid chat mode. Use &fprivate &cor &fbroadcast&c."
+    invalid_rename_mode: "&cInvalid rename mode. Use &foff&c, &fon&c, or &frandom&c."
+    invalid_preset: "&cInvalid preset. Use &fbuilder&c, &fhunter&c, &ffarmer&c, or &fmessenger&c."
+    chat_set: "&aChore chat mode set to &f{mode}&a."
+    rename_set: "&aChore rename mode set to &f{mode}&a."
+    preset_started: "&aStarted preset &f{preset} &afor &f{rounds} &arounds."
 
 leash:
   bound: "&dYou leashed &b{player}&d."

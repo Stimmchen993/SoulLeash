@@ -1,5 +1,6 @@
 package nc;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -24,12 +25,24 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static nc.SoulLeash.instance;
 
 public final class ChoreModeManager implements Listener {
+    public enum ChatMode {
+        PRIVATE,
+        BROADCAST
+    }
+
+    public enum RenameMode {
+        OFF,
+        ON,
+        RANDOM
+    }
+
     public enum TaskType {
         MINE,
         GATHER,
@@ -113,19 +126,26 @@ public final class ChoreModeManager implements Listener {
         private final Deque<ChoreTask> queue;
         private ChoreTask active;
         private final long endsAt;
-        private final boolean privateMessages;
+        private ChatMode chatMode;
+        private RenameMode renameMode;
+        private final Component originalCustomName;
+        private final boolean originalCustomNameVisible;
         private long nextTeaseAt;
         private long nextCareAt;
         private long nextTugAt;
         private long nextLookAt;
 
-        private ChoreSession(UUID issuer, UUID target, Deque<ChoreTask> queue, long endsAt, boolean privateMessages) {
+        private ChoreSession(UUID issuer, UUID target, Deque<ChoreTask> queue, long endsAt, ChatMode chatMode,
+                             RenameMode renameMode, Component originalCustomName, boolean originalCustomNameVisible) {
             this.issuer = issuer;
             this.target = target;
             this.queue = queue;
             this.active = queue.pollFirst();
             this.endsAt = endsAt;
-            this.privateMessages = privateMessages;
+            this.chatMode = chatMode;
+            this.renameMode = renameMode;
+            this.originalCustomName = originalCustomName;
+            this.originalCustomNameVisible = originalCustomNameVisible;
             this.nextTeaseAt = System.currentTimeMillis();
             this.nextCareAt = System.currentTimeMillis();
             this.nextTugAt = System.currentTimeMillis();
@@ -151,6 +171,7 @@ public final class ChoreModeManager implements Listener {
             "No slacking, complete the objective.",
             "Taskmaster says: stay on target."
     };
+    private static final Set<String> PRESET_NAMES = Set.of("builder", "hunter", "farmer", "messenger");
 
     private static final Map<UUID, ChoreSession> sessions = new ConcurrentHashMap<>();
     private static BukkitRunnable ticker;
@@ -192,12 +213,47 @@ public final class ChoreModeManager implements Listener {
         return startInternal(issuer, target, generateRandomTasks(count), endsAt);
     }
 
+    public static boolean startPreset(Player issuer, Player target, String preset, int rounds) {
+        if (preset == null || !PRESET_NAMES.contains(preset.toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        int clampedRounds = Math.max(1, Math.min(10, rounds));
+        Deque<ChoreTask> tasks = generatePresetTasks(preset.toLowerCase(Locale.ROOT), clampedRounds);
+        if (tasks.isEmpty()) {
+            return false;
+        }
+        long endsAt = System.currentTimeMillis() + Math.max(20, tasks.size() * 5) * 60_000L;
+        return startInternal(issuer, target, tasks, endsAt);
+    }
+
     public static boolean addCustomTask(UUID target, ChoreTask task) {
         ChoreSession session = sessions.get(target);
         if (session == null || task == null) {
             return false;
         }
         session.queue.addLast(task);
+        return true;
+    }
+
+    public static boolean setChatMode(UUID target, ChatMode mode) {
+        ChoreSession session = sessions.get(target);
+        if (session == null || mode == null) {
+            return false;
+        }
+        session.chatMode = mode;
+        return true;
+    }
+
+    public static boolean setRenameMode(UUID target, RenameMode mode) {
+        ChoreSession session = sessions.get(target);
+        if (session == null || mode == null) {
+            return false;
+        }
+        session.renameMode = mode;
+        Player player = Bukkit.getPlayer(target);
+        if (player != null && player.isOnline()) {
+            applyRenameMode(session, player);
+        }
         return true;
     }
 
@@ -241,12 +297,16 @@ public final class ChoreModeManager implements Listener {
             stop(target.getUniqueId(), "command.chore.stopped");
         }
 
+        RenameMode renameMode = defaultRenameModeFor(issuer, target);
         ChoreSession session = new ChoreSession(
                 issuer.getUniqueId(),
                 target.getUniqueId(),
                 tasks,
                 endsAt,
-                Settings.chorePrivateMessagesDefault()
+                Settings.chorePrivateMessagesDefault() ? ChatMode.PRIVATE : ChatMode.BROADCAST,
+                renameMode,
+                target.customName(),
+                target.isCustomNameVisible()
         );
         Entity npc = spawnNpc(target.getLocation());
         if (npc == null) {
@@ -257,6 +317,7 @@ public final class ChoreModeManager implements Listener {
 
         Helper.removeLeash(target.getUniqueId());
         Helper.attachLeash(target, npc);
+        applyRenameMode(session, target);
 
         Lang.send(target, "command.chore.started_target", "issuer", issuer.getName());
         Lang.send(issuer, "command.chore.started_issuer", "player", target.getName());
@@ -436,6 +497,11 @@ public final class ChoreModeManager implements Listener {
         }
 
         Helper.removeLeash(session.target);
+        Player target = Bukkit.getPlayer(session.target);
+        if (target != null && target.isOnline()) {
+            target.customName(session.originalCustomName);
+            target.setCustomNameVisible(session.originalCustomNameVisible);
+        }
         if (leash.isCurrentlyLeashed(session.target)) {
             UUID owner = leash.getOwner(session.target);
             if (owner != null) {
@@ -482,6 +548,37 @@ public final class ChoreModeManager implements Listener {
         return tasks;
     }
 
+    private static Deque<ChoreTask> generatePresetTasks(String preset, int rounds) {
+        Deque<ChoreTask> tasks = new ArrayDeque<>();
+        for (int i = 0; i < rounds; i++) {
+            switch (preset) {
+                case "builder" -> {
+                    tasks.addLast(ChoreTask.mine(Material.STONE, 24));
+                    tasks.addLast(ChoreTask.gather(Material.OAK_LOG, 16));
+                    tasks.addLast(ChoreTask.deliver(Material.COBBLESTONE, 32));
+                }
+                case "hunter" -> {
+                    tasks.addLast(ChoreTask.kill(EntityType.ZOMBIE, 8));
+                    tasks.addLast(ChoreTask.kill(EntityType.SKELETON, 6));
+                    tasks.addLast(ChoreTask.deliver(Material.ROTTEN_FLESH, 12));
+                }
+                case "farmer" -> {
+                    tasks.addLast(ChoreTask.gather(Material.WHEAT, 24));
+                    tasks.addLast(ChoreTask.gather(Material.CARROT, 16));
+                    tasks.addLast(ChoreTask.deliver(Material.BREAD, 8));
+                }
+                case "messenger" -> {
+                    tasks.addLast(ChoreTask.deliver(Material.OAK_LOG, 16));
+                    tasks.addLast(ChoreTask.deliver(Material.COOKED_BEEF, 10));
+                    tasks.addLast(ChoreTask.deliver(Material.COBBLESTONE, 24));
+                }
+                default -> {
+                }
+            }
+        }
+        return tasks;
+    }
+
     public static ChoreTask parseCustomTask(String typeRaw, String targetRaw, int count) {
         if (typeRaw == null || targetRaw == null) {
             return null;
@@ -512,11 +609,75 @@ public final class ChoreModeManager implements Listener {
     }
 
     private static void sendToTarget(ChoreSession session, Player target, String rawMessage) {
-        if (session.privateMessages) {
+        if (session.chatMode == ChatMode.PRIVATE) {
             target.sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', rawMessage));
             return;
         }
         Bukkit.broadcastMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', rawMessage.replace("Taskmaster", "Taskmaster@" + target.getName())));
+    }
+
+    public static ChatMode parseChatMode(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        return switch (raw.toLowerCase(Locale.ROOT)) {
+            case "private" -> ChatMode.PRIVATE;
+            case "broadcast" -> ChatMode.BROADCAST;
+            default -> null;
+        };
+    }
+
+    public static RenameMode parseRenameMode(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        return switch (raw.toLowerCase(Locale.ROOT)) {
+            case "off" -> RenameMode.OFF;
+            case "on" -> RenameMode.ON;
+            case "random" -> RenameMode.RANDOM;
+            default -> null;
+        };
+    }
+
+    public static boolean isPresetName(String raw) {
+        return raw != null && PRESET_NAMES.contains(raw.toLowerCase(Locale.ROOT));
+    }
+
+    private static RenameMode defaultRenameModeFor(Player issuer, Player target) {
+        if (!Settings.choreRandomRenameNonOwner()) {
+            return RenameMode.OFF;
+        }
+        boolean ownerIssued = leash.isOwnedBy(issuer.getUniqueId(), target.getUniqueId());
+        if (!ownerIssued) {
+            return RenameMode.RANDOM;
+        }
+        return RenameMode.OFF;
+    }
+
+    private static void applyRenameMode(ChoreSession session, Player target) {
+        if (session.renameMode == RenameMode.OFF) {
+            target.customName(session.originalCustomName);
+            target.setCustomNameVisible(session.originalCustomNameVisible);
+            return;
+        }
+
+        if (session.renameMode == RenameMode.ON) {
+            target.customName(Component.text("Taskbound " + target.getName()));
+            target.setCustomNameVisible(true);
+            return;
+        }
+
+        String adj = pick(Settings.choreRenameAdjectives());
+        String noun = pick(Settings.choreRenameNouns());
+        target.customName(Component.text(adj + " " + noun));
+        target.setCustomNameVisible(true);
+    }
+
+    private static String pick(List<String> array) {
+        if (array == null || array.isEmpty()) {
+            return "Task";
+        }
+        return array.get((int) (Math.random() * array.size()));
     }
 
     private static int countMaterial(Player player, Material material) {

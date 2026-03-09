@@ -68,6 +68,9 @@ Admin command:
 - `/leashplayers chore start <player> minutes <value>`
 - `/leashplayers chore start <player> tasks <value>`
 - `/leashplayers chore add <player> <mine|gather|kill|deliver> <target> <count>`
+- `/leashplayers chore preset <player> <builder|hunter|farmer|messenger> [rounds]`
+- `/leashplayers chore chat <player> <private|broadcast>`
+- `/leashplayers chore rename <player> <off|on|random>`
 - `/leashplayers chore status <player>`
 - `/leashplayers chore stop <player>`
 

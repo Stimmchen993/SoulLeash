@@ -308,7 +308,7 @@ public class Executors implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("chore")) {
-            StringUtil.copyPartialMatches(args[1], Arrays.asList("start", "stop", "status", "add"), completions);
+            StringUtil.copyPartialMatches(args[1], Arrays.asList("start", "stop", "status", "add", "chat", "rename", "preset"), completions);
             return completions;
         }
 
@@ -324,6 +324,21 @@ public class Executors implements CommandExecutor, TabCompleter {
 
         if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("add")) {
             StringUtil.copyPartialMatches(args[3], Arrays.asList("mine", "gather", "kill", "deliver"), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("chat")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("private", "broadcast"), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("rename")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("off", "on", "random"), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("chore") && args[1].equalsIgnoreCase("preset")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("builder", "hunter", "farmer", "messenger"), completions);
             return completions;
         }
 
@@ -512,6 +527,35 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (action.equals("preset")) {
+            if (args.length < 4) {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+            String preset = args[3];
+            int rounds = 1;
+            if (args.length >= 5) {
+                try {
+                    rounds = Integer.parseInt(args[4]);
+                } catch (NumberFormatException ex) {
+                    Lang.send(issuer, "command.invalid_number", "value", args[4]);
+                    return true;
+                }
+            }
+
+            if (!ChoreModeManager.isPresetName(preset)) {
+                Lang.send(issuer, "command.chore.invalid_preset");
+                return true;
+            }
+            boolean ok = ChoreModeManager.startPreset(issuer, target, preset, rounds);
+            if (!ok) {
+                Lang.send(issuer, "command.chore.start_failed");
+            } else {
+                Lang.send(issuer, "command.chore.preset_started", "preset", preset.toLowerCase(Locale.ROOT), "rounds", rounds);
+            }
+            return true;
+        }
+
         if (action.equals("add")) {
             if (args.length < 6) {
                 Lang.send(issuer, "command.chore.usage");
@@ -537,6 +581,42 @@ public class Executors implements CommandExecutor, TabCompleter {
                 return true;
             }
             Lang.send(issuer, "command.chore.task_added", "task", task.describe());
+            return true;
+        }
+
+        if (action.equals("chat")) {
+            if (args.length < 4) {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+            ChoreModeManager.ChatMode mode = ChoreModeManager.parseChatMode(args[3]);
+            if (mode == null) {
+                Lang.send(issuer, "command.chore.invalid_chat_mode");
+                return true;
+            }
+            if (!ChoreModeManager.setChatMode(target.getUniqueId(), mode)) {
+                Lang.send(issuer, "command.chore.none");
+                return true;
+            }
+            Lang.send(issuer, "command.chore.chat_set", "mode", mode.name().toLowerCase(Locale.ROOT));
+            return true;
+        }
+
+        if (action.equals("rename")) {
+            if (args.length < 4) {
+                Lang.send(issuer, "command.chore.usage");
+                return true;
+            }
+            ChoreModeManager.RenameMode mode = ChoreModeManager.parseRenameMode(args[3]);
+            if (mode == null) {
+                Lang.send(issuer, "command.chore.invalid_rename_mode");
+                return true;
+            }
+            if (!ChoreModeManager.setRenameMode(target.getUniqueId(), mode)) {
+                Lang.send(issuer, "command.chore.none");
+                return true;
+            }
+            Lang.send(issuer, "command.chore.rename_set", "mode", mode.name().toLowerCase(Locale.ROOT));
             return true;
         }
 
