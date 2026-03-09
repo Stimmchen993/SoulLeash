@@ -175,24 +175,29 @@ public class leash implements Listener {
                 }
 
                 // 强制拉动逻辑，根据距离调整 M 的速度
-                Vector pull = null;
                 if (distance > Settings.leashTeleportDistance()) {
                     m.teleport(sLoc); // 超远距离时直接传送
                     Helper.attachLeash(m, s);
-                } else if (distance > Settings.leashPullHardDistance() && m.isOnGround()) {
-                    m.setVelocity(m.getVelocity().setY(Settings.leashPullGroundYBoost())); // 如果在地面，拉起 M
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullGroundStrength()); // 拉力
-                } else if (distance > Settings.leashPullMediumDistance()) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullHardStrength()); // 拉力减少
-                } else if (distance > Settings.leashPullSoftDistance()) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullMediumStrength());
-                } else if (distance > Settings.leashPullStartDistance()) {
-                    pull = sLoc.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.leashPullSoftStrength());
-                }
-
-                // 如果需要拉动 M，则添加拉力
-                if (pull != null) {
-                    m.setVelocity(m.getVelocity().add(pull));
+                } else {
+                    if (distance > Settings.leashPullHardDistance() && m.isOnGround()) {
+                        FollowPhysics.applyGroundBoost(m, Settings.leashPullGroundYBoost());
+                    }
+                    Vector pull = FollowPhysics.computePull(
+                            mLoc, sLoc, distance,
+                            Settings.leashPullStartDistance(),
+                            Settings.leashPullSoftDistance(),
+                            Settings.leashPullMediumDistance(),
+                            Settings.leashPullHardDistance(),
+                            Settings.leashPullSoftStrength(),
+                            Settings.leashPullMediumStrength(),
+                            Settings.leashPullHardStrength(),
+                            Settings.leashPullGroundStrength(),
+                            m.isOnGround()
+                    );
+                    // 如果需要拉动 M，则添加拉力
+                    if (pull != null) {
+                        m.setVelocity(m.getVelocity().add(pull));
+                    }
                 }
 
                 // 更新 M 的最后位置

@@ -18,7 +18,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -149,19 +148,25 @@ public class Fence implements Listener {
                 if (distance > Settings.fenceTeleportDistance()) {
                     m.teleport(fenceLocation); // 超远距离直接传送
                 } else if (distance > Settings.fencePullStartDistance()) {
-                    // 如果玩家距离栅栏在5到7格之间，施加推力
-                    @NotNull Vector pull;
+                    // 如果玩家距离栅栏在阈值外，施加推力
                     if (distance > Settings.fencePullHardDistance() && m.isOnGround()) {
-                        m.setVelocity(m.getVelocity().setY(Settings.fencePullGroundYBoost())); // 适当的向上推力
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullGroundStrength());
-                    } else if (distance > Settings.fencePullMediumDistance()) {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullHardStrength());
-                    } else if (distance > Settings.fencePullSoftDistance()) {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullMediumStrength());
-                    } else {
-                        pull = fenceLocation.toVector().subtract(mLoc.toVector()).normalize().multiply(Settings.fencePullSoftStrength());
+                        FollowPhysics.applyGroundBoost(m, Settings.fencePullGroundYBoost());
                     }
-                    m.setVelocity(pull); // 向栅栏拉近
+                    Vector pull = FollowPhysics.computePull(
+                            mLoc, fenceLocation, distance,
+                            Settings.fencePullStartDistance(),
+                            Settings.fencePullSoftDistance(),
+                            Settings.fencePullMediumDistance(),
+                            Settings.fencePullHardDistance(),
+                            Settings.fencePullSoftStrength(),
+                            Settings.fencePullMediumStrength(),
+                            Settings.fencePullHardStrength(),
+                            Settings.fencePullGroundStrength(),
+                            m.isOnGround()
+                    );
+                    if (pull != null) {
+                        m.setVelocity(pull); // 向栅栏拉近
+                    }
                 }
             }
         };

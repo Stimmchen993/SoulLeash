@@ -9,15 +9,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 public class Lookat implements Listener{
-    public final Map<UUID, BukkitRunnable> leashTasks = new HashMap<>();
     // 玩家右键使用特定物品（这里是不死图腾）时触发的事件
     @EventHandler
     public void onCherryButtonRightClick(PlayerInteractEvent event) {

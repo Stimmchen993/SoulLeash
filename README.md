@@ -45,6 +45,8 @@ leashplayers.leashable — Allows being leashed by others
   - `permissions.leashable`
 - Feature toggles in `config.yml` under `features.*`
 - Tunable timings and leash/fence behavior in `sync.*`, `leash.*`, `fence.*`, `food-share.*`
+- Shared follow physics extracted to `FollowPhysics` for easier maintenance
+- Legacy unregistered duplicate listener path (`Listeners.java`) removed
 
 Admin command:
 
