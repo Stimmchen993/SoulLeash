@@ -308,7 +308,7 @@ public class Executors implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("chore")) {
-            StringUtil.copyPartialMatches(args[1], Arrays.asList("start", "stop", "status", "add", "chat", "rename", "preset"), completions);
+            StringUtil.copyPartialMatches(args[1], Arrays.asList("start", "stop", "status", "add", "chat", "rename", "preset", "prefs"), completions);
             return completions;
         }
 
@@ -491,6 +491,16 @@ public class Executors implements CommandExecutor, TabCompleter {
 
         if (action.equals("status")) {
             Lang.send(issuer, "command.chore.status", "status", ChoreModeManager.getStatus(target.getUniqueId()));
+            return true;
+        }
+
+        if (action.equals("prefs")) {
+            ChoreModeManager.ChatMode chat = ChoreModeManager.getPreferredChatMode(target.getUniqueId());
+            ChoreModeManager.RenameMode rename = ChoreModeManager.getPreferredRenameMode(target.getUniqueId());
+            Lang.send(issuer, "command.chore.prefs",
+                    "player", target.getName(),
+                    "chat", chat.name().toLowerCase(Locale.ROOT),
+                    "rename", rename.name().toLowerCase(Locale.ROOT));
             return true;
         }
 

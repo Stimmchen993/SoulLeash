@@ -276,6 +276,17 @@ public final class ChoreModeManager implements Listener {
         return true;
     }
 
+    public static ChatMode getPreferredChatMode(UUID target) {
+        return preferredChatMode.getOrDefault(
+                target,
+                Settings.chorePrivateMessagesDefault() ? ChatMode.PRIVATE : ChatMode.BROADCAST
+        );
+    }
+
+    public static RenameMode getPreferredRenameMode(UUID target) {
+        return preferredRenameMode.getOrDefault(target, RenameMode.OFF);
+    }
+
     public static boolean stop(UUID target, String reasonKey) {
         ChoreSession session = sessions.remove(target);
         if (session == null) {

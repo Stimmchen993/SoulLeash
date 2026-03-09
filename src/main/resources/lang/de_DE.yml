@@ -39,7 +39,7 @@ command:
     mirror_stopped: "&eMirror-Modus gestoppt."
     mirror_tug: "&aMirror-Zug ausgeführt."
   chore:
-    usage: "&eNutzung: &f/leashplayers chore <start|stop|status|add|chat|rename|preset> <spieler> ..."
+    usage: "&eNutzung: &f/leashplayers chore <start|stop|status|add|chat|rename|preset|prefs> <spieler> ..."
     not_allowed: "&cDu kannst den Chore-Modus nur fuer dich selbst (wenn unleashed) oder fuer Spieler starten, die dir gehoeren."
     started_target: "&dTaskmaster hat deinen Chore-Modus gestartet (von &f{issuer}&d)."
     started_issuer: "&aChore-Modus fuer &b{player} &agestartet."
@@ -57,6 +57,7 @@ command:
     chat_set: "&aChore-Chatmodus auf &f{mode} &agesetzt."
     rename_set: "&aChore-Rename-Modus auf &f{mode} &agesetzt."
     preset_started: "&aPreset &f{preset} &afuer &f{rounds} &aRunden gestartet."
+    prefs: "&7Chore-Praeferenzen fuer &f{player}&7: chat=&f{chat}&7, rename=&f{rename}"
 
 leash:
   bound: "&dDu hast &b{player} &dangeleint."

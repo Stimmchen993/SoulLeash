@@ -71,6 +71,7 @@ Admin command:
 - `/leashplayers chore preset <player> <builder|hunter|farmer|messenger> [rounds]`
 - `/leashplayers chore chat <player> <private|broadcast>`
 - `/leashplayers chore rename <player> <off|on|random>`
+- `/leashplayers chore prefs <player>`
 - `/leashplayers chore status <player>`
 - `/leashplayers chore stop <player>`
 
