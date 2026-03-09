@@ -7,7 +7,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.util.StringUtil;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -31,18 +31,34 @@ public class Executors implements CommandExecutor, TabCompleter {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // 如果没有参数，返回 false 显示帮助提示
-        if (args.length == 0) return false;
-
-        // 判断是否为 reload 子命令
-        if (args[0].equalsIgnoreCase("reload")) {
-            main.reloadConfig(); // 重新加载 config.yml
-            sender.sendMessage("§aSoulLeash config reloaded.");
+        if (args.length == 0) {
+            Lang.send(sender, "command.usage");
             return true;
         }
 
-        // 如果命令未被识别
-        return false;
+        if (args[0].equalsIgnoreCase("reload")) {
+            main.reloadConfig();
+            Lang.reload();
+            Lang.send(sender, "command.reload.success", "lang", Lang.getCurrentLanguage());
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("lang")) {
+            if (args.length == 1) {
+                Lang.send(sender, "command.lang.current", "lang", Lang.getCurrentLanguage());
+                return true;
+            }
+
+            String requested = args[1];
+            main.getConfig().set("language", requested);
+            main.saveConfig();
+            Lang.reload();
+            Lang.send(sender, "command.lang.set", "lang", Lang.getCurrentLanguage());
+            return true;
+        }
+
+        Lang.send(sender, "command.usage");
+        return true;
     }
 
     /**
@@ -55,14 +71,14 @@ public class Executors implements CommandExecutor, TabCompleter {
      */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        final List<String> completions = new ArrayList<>();
-
-        // 如果正在输入第一个参数，提供建议
+        List<String> completions = new ArrayList<>();
         if (args.length == 1) {
-            List<String> COMMANDS = Collections.singletonList("reload"); // 可扩展
-            // 匹配当前输入的前缀，生成补全选项
-            StringUtil.copyPartialMatches(args[0], COMMANDS, completions);
-            Collections.sort(completions);
+            StringUtil.copyPartialMatches(args[0], Arrays.asList("reload", "lang"), completions);
+            return completions;
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("lang")) {
+            StringUtil.copyPartialMatches(args[1], Arrays.asList("en_US", "de_DE"), completions);
         }
 
         return completions;

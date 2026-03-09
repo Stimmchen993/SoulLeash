@@ -1,1 +1,7 @@
-# Placeholder config file for future options.
+# Main language file to use from plugins/SouiLeash/lang/
+# Built-in options: en_US, de_DE
+language: en_US
+
+settings:
+  # Cooldown for the Nether Star summon feature.
+  summon-cooldown-seconds: 600

@@ -2,7 +2,6 @@ package nc;
 
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -60,8 +59,7 @@ public class leash implements Listener {
             // 启动绑定状态下的效果任务
             startLeashTask(s, m);
             // 提示消息
-            s.sendMessage(ChatColor.LIGHT_PURPLE + "You leashed " + ChatColor.AQUA + m.getName()
-                    + ChatColor.LIGHT_PURPLE + ".");
+            Lang.send(s, "leash.bound", "player", m.getName());
         }
 
         // ----------- 使用剑解除绑定逻辑 -----------
@@ -92,7 +90,7 @@ public class leash implements Listener {
                 clearLeashTask(mUUID);
 
                 // 提示消息
-                s.sendMessage(ChatColor.RED + "You unleashed " + ChatColor.AQUA + m.getName() + ChatColor.RED + ".");
+                Lang.send(s, "leash.unbound", "player", m.getName());
             }
         }
     }
@@ -160,7 +158,7 @@ public class leash implements Listener {
                                 // 超过 3 秒，提醒主人仆从被卡住了
                                 String petName = m.getName();
                                 s.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                                        new TextComponent("§eYour leashed player §d" + petName + " §eseems stuck!"));
+                                        new TextComponent(Lang.tr("leash.stuck_actionbar", "player", petName)));
                                 Helper.removeLeash(m.getUniqueId());
                                 stuckStartTime[0] = 0; // 重置计时器
                             }

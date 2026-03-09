@@ -30,6 +30,7 @@ public final class SoulLeash extends JavaPlugin {
         }
         instance = this;  // 插件实例化
         saveDefaultConfig(); // 保存默认配置
+        Lang.init(this);
 
         // 初始化所有必要的数据
         initializeLeashData();  // 初始化配置文件
@@ -62,7 +63,7 @@ public final class SoulLeash extends JavaPlugin {
 
 
 
-        getLogger().info("SouiLeash loaded successfully.");
+        getLogger().info(Lang.plain("plugin.enabled"));
     }
 
 
@@ -72,7 +73,7 @@ public final class SoulLeash extends JavaPlugin {
             fence.saveFenceLeashData();
         }
         saveLeashData();
-        getLogger().info("SouiLeash has been disabled.");
+        getLogger().info(Lang.plain("plugin.disabled"));
 
     }
 

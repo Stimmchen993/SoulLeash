@@ -1,6 +1,9 @@
 package nc;
 
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.event.EventHandler;
@@ -15,7 +18,6 @@ import static nc.SoulLeash.leashMap;
 public class SummonAll implements Listener {
 
     private final Map<UUID, Long> cooldownMap = new HashMap<>();
-    private static final long CD = 10 * 60 * 1000L; // 10分钟
 
     @EventHandler
     public void onUseStar(PlayerInteractEvent e) {
@@ -27,10 +29,11 @@ public class SummonAll implements Listener {
 
         UUID id = p.getUniqueId();
         long now = System.currentTimeMillis();
+        long cooldownMs = getCooldownMillis();
 
-        if (cooldownMap.containsKey(id) && now - cooldownMap.get(id) < CD) {
-            long left = (CD - (now - cooldownMap.get(id))) / 1000;
-            p.sendMessage(ChatColor.RED + "Summon is on cooldown (" + left + "s remaining).");
+        if (cooldownMap.containsKey(id) && now - cooldownMap.get(id) < cooldownMs) {
+            long left = (cooldownMs - (now - cooldownMap.get(id))) / 1000;
+            Lang.send(p, "summon.cooldown", "seconds", left);
             return;
         }
 
@@ -51,6 +54,11 @@ public class SummonAll implements Listener {
         }
 
         cooldownMap.put(id, now);
-        p.sendMessage(ChatColor.GREEN + "You summoned your leashed players to your position.");
+        Lang.send(p, "summon.success");
+    }
+
+    private long getCooldownMillis() {
+        long seconds = SoulLeash.getInstance().getConfig().getLong("settings.summon-cooldown-seconds", 600L);
+        return Math.max(1L, seconds) * 1000L;
     }
 }

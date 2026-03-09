@@ -1,0 +1,29 @@
+plugin:
+  enabled: "&aSouiLeash erfolgreich geladen."
+  disabled: "&cSouiLeash wurde deaktiviert."
+
+command:
+  usage: "&eNutzung: &f/leashplayers reload &7oder &f/leashplayers lang <en_US|de_DE>"
+  reload:
+    success: "&aSouiLeash-Konfiguration neu geladen. Aktive Sprache: &f{lang}&a."
+  lang:
+    current: "&aAktuelle Sprache: &f{lang}&a."
+    set: "&aSprache aktualisiert. Aktive Sprache: &f{lang}&a."
+
+leash:
+  bound: "&dDu hast &b{player} &dangeleint."
+  unbound: "&cDu hast &b{player} &centleint."
+  stuck_actionbar: "&eDein angeleinter Spieler &d{player} &esteckt fest!"
+
+summon:
+  cooldown: "&cBeschwoerung hat Abklingzeit (&f{seconds}s&c verbleibend)."
+  success: "&aDu hast deine angeleinten Spieler zu dir teleportiert."
+
+fence:
+  bound: "&dDein angeleinter Spieler ist jetzt an diesem Zaun befestigt."
+  unbound: "&dLeine wiederhergestellt. Dein Spieler folgt dir wieder."
+
+bone:
+  muted: "&eMit Knochenfluch stummgeschaltet."
+  unmuted: "&aKnochenfluch entfernt."
+  replacement_syllable: "miau"

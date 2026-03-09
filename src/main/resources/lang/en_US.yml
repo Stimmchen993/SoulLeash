@@ -1,0 +1,29 @@
+plugin:
+  enabled: "&aSouiLeash loaded successfully."
+  disabled: "&cSouiLeash has been disabled."
+
+command:
+  usage: "&eUsage: &f/leashplayers reload &7or &f/leashplayers lang <en_US|de_DE>"
+  reload:
+    success: "&aSouiLeash config reloaded. Active language: &f{lang}&a."
+  lang:
+    current: "&aCurrent language: &f{lang}&a."
+    set: "&aLanguage updated. Active language: &f{lang}&a."
+
+leash:
+  bound: "&dYou leashed &b{player}&d."
+  unbound: "&cYou unleashed &b{player}&c."
+  stuck_actionbar: "&eYour leashed player &d{player} &eseems stuck!"
+
+summon:
+  cooldown: "&cSummon is on cooldown (&f{seconds}s&c remaining)."
+  success: "&aYou summoned your leashed players to your position."
+
+fence:
+  bound: "&dYour leashed player is now tied to this fence."
+  unbound: "&dLeash restored. Your player follows you again."
+
+bone:
+  muted: "&eMuted with Bone Curse."
+  unmuted: "&aBone Curse removed."
+  replacement_syllable: "meow"

@@ -66,13 +66,13 @@ public class BoneControl implements Listener {
                 }
             }
             inv.setHelmet(getCursedBone());
-            master.sendMessage("§eMuted with Bone Curse.");
+            Lang.send(master, "bone.muted");
 
         } else if (hand.getType() == Material.SHEARS) {
             if (isWearingBone(servant)) {
                 servant.getInventory().setHelmet(null);
                 servant.getWorld().playSound(servant.getLocation(), Sound.ENTITY_SHEEP_SHEAR, 1, 1.2f);
-                master.sendMessage("§aBone Curse removed.");
+                Lang.send(master, "bone.unmuted");
             }
         }
     }
@@ -89,7 +89,7 @@ public class BoneControl implements Listener {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < msg.length(); i++) {
-            sb.append("meow");
+            sb.append(getReplacementSyllable());
         }
 
         event.setMessage(sb.toString());
@@ -109,9 +109,17 @@ public class BoneControl implements Listener {
                 original = COLOR_PATTERN.matcher(original).replaceAll("");
                 original = PREFIX_SUFFIX_PATTERN.matcher(original).replaceAll("");
 
-                String censored = "meow".repeat(Math.max(1, original.length() / 2));
+                String censored = getReplacementSyllable().repeat(Math.max(1, original.length() / 2));
                 event.setMessage(parts[0] + " " + parts[1] + " " + censored);
             }
         }
+    }
+
+    private String getReplacementSyllable() {
+        String replacement = Lang.plain("bone.replacement_syllable");
+        if (replacement == null || replacement.isBlank()) {
+            return "meow";
+        }
+        return replacement;
     }
 }
