@@ -74,6 +74,8 @@ Admin command:
 - `/leashplayers chore status <player>`
 - `/leashplayers chore stop <player>`
 
+Chore chat/rename choices are persisted per player in `plugins/SouiLeash/chore_prefs.yml`.
+
 ## Build (local)
 
 - Recommended one-liner (works without local Maven):

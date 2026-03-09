@@ -478,7 +478,13 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (!canIssueChore(issuer, target) && !issuer.hasPermission(Settings.permissionAdmin())) {
+        boolean admin = issuer.hasPermission(Settings.permissionAdmin());
+        boolean needsStartPermission = action.equals("start") || action.equals("preset");
+        if (needsStartPermission && !canStartChore(issuer, target) && !admin) {
+            Lang.send(issuer, "command.chore.not_allowed");
+            return true;
+        }
+        if (!needsStartPermission && !canManageChore(issuer, target) && !admin) {
             Lang.send(issuer, "command.chore.not_allowed");
             return true;
         }
@@ -624,11 +630,19 @@ public class Executors implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean canIssueChore(Player issuer, Player target) {
+    private boolean canStartChore(Player issuer, Player target) {
         if (issuer.getUniqueId().equals(target.getUniqueId())) {
             return !leash.isCurrentlyLeashed(target.getUniqueId()) && target.hasPermission(Settings.permissionLeashable());
         }
 
+        UUID owner = leash.getOwner(target.getUniqueId());
+        return owner != null && owner.equals(issuer.getUniqueId());
+    }
+
+    private boolean canManageChore(Player issuer, Player target) {
+        if (issuer.getUniqueId().equals(target.getUniqueId())) {
+            return true;
+        }
         UUID owner = leash.getOwner(target.getUniqueId());
         return owner != null && owner.equals(issuer.getUniqueId());
     }

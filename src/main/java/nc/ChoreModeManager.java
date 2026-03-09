@@ -4,6 +4,8 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -28,6 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.io.File;
+import java.io.IOException;
 
 import static nc.SoulLeash.instance;
 
@@ -174,6 +178,10 @@ public final class ChoreModeManager implements Listener {
     private static final Set<String> PRESET_NAMES = Set.of("builder", "hunter", "farmer", "messenger");
 
     private static final Map<UUID, ChoreSession> sessions = new ConcurrentHashMap<>();
+    private static final Map<UUID, ChatMode> preferredChatMode = new ConcurrentHashMap<>();
+    private static final Map<UUID, RenameMode> preferredRenameMode = new ConcurrentHashMap<>();
+    private static File preferencesFile;
+    private static FileConfiguration preferencesConfig;
     private static BukkitRunnable ticker;
 
     private ChoreModeManager() {
@@ -181,6 +189,7 @@ public final class ChoreModeManager implements Listener {
 
     public static void init(SoulLeash plugin) {
         Bukkit.getPluginManager().registerEvents(new ChoreModeManager(), plugin);
+        loadPreferences(plugin);
         startTicker();
     }
 
@@ -236,24 +245,34 @@ public final class ChoreModeManager implements Listener {
     }
 
     public static boolean setChatMode(UUID target, ChatMode mode) {
-        ChoreSession session = sessions.get(target);
-        if (session == null || mode == null) {
+        if (mode == null) {
             return false;
         }
-        session.chatMode = mode;
+        preferredChatMode.put(target, mode);
+        ChoreSession session = sessions.get(target);
+        if (session != null) {
+            session.chatMode = mode;
+        }
+        savePreferences();
         return true;
     }
 
     public static boolean setRenameMode(UUID target, RenameMode mode) {
-        ChoreSession session = sessions.get(target);
-        if (session == null || mode == null) {
+        if (mode == null) {
             return false;
+        }
+        preferredRenameMode.put(target, mode);
+        ChoreSession session = sessions.get(target);
+        if (session == null) {
+            savePreferences();
+            return true;
         }
         session.renameMode = mode;
         Player player = Bukkit.getPlayer(target);
         if (player != null && player.isOnline()) {
             applyRenameMode(session, player);
         }
+        savePreferences();
         return true;
     }
 
@@ -275,6 +294,7 @@ public final class ChoreModeManager implements Listener {
     }
 
     public static void shutdown() {
+        savePreferences();
         if (ticker != null) {
             ticker.cancel();
             ticker = null;
@@ -297,13 +317,17 @@ public final class ChoreModeManager implements Listener {
             stop(target.getUniqueId(), "command.chore.stopped");
         }
 
-        RenameMode renameMode = defaultRenameModeFor(issuer, target);
+        RenameMode renameMode = preferredRenameMode.getOrDefault(target.getUniqueId(), defaultRenameModeFor(issuer, target));
+        ChatMode chatMode = preferredChatMode.getOrDefault(
+                target.getUniqueId(),
+                Settings.chorePrivateMessagesDefault() ? ChatMode.PRIVATE : ChatMode.BROADCAST
+        );
         ChoreSession session = new ChoreSession(
                 issuer.getUniqueId(),
                 target.getUniqueId(),
                 tasks,
                 endsAt,
-                Settings.chorePrivateMessagesDefault() ? ChatMode.PRIVATE : ChatMode.BROADCAST,
+                chatMode,
                 renameMode,
                 target.customName(),
                 target.isCustomNameVisible()
@@ -678,6 +702,67 @@ public final class ChoreModeManager implements Listener {
             return "Task";
         }
         return array.get((int) (Math.random() * array.size()));
+    }
+
+    private static void loadPreferences(SoulLeash plugin) {
+        preferredChatMode.clear();
+        preferredRenameMode.clear();
+
+        preferencesFile = new File(plugin.getDataFolder(), "chore_prefs.yml");
+        if (!preferencesFile.exists()) {
+            try {
+                preferencesFile.createNewFile();
+            } catch (IOException ignored) {
+            }
+        }
+        preferencesConfig = YamlConfiguration.loadConfiguration(preferencesFile);
+
+        if (preferencesConfig.isConfigurationSection("chat")) {
+            for (String key : preferencesConfig.getConfigurationSection("chat").getKeys(false)) {
+                try {
+                    UUID player = UUID.fromString(key);
+                    ChatMode mode = parseChatMode(preferencesConfig.getString("chat." + key));
+                    if (mode != null) {
+                        preferredChatMode.put(player, mode);
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+
+        if (preferencesConfig.isConfigurationSection("rename")) {
+            for (String key : preferencesConfig.getConfigurationSection("rename").getKeys(false)) {
+                try {
+                    UUID player = UUID.fromString(key);
+                    RenameMode mode = parseRenameMode(preferencesConfig.getString("rename." + key));
+                    if (mode != null) {
+                        preferredRenameMode.put(player, mode);
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+    }
+
+    private static void savePreferences() {
+        if (preferencesConfig == null || preferencesFile == null) {
+            return;
+        }
+
+        preferencesConfig.set("chat", null);
+        preferencesConfig.set("rename", null);
+
+        for (Map.Entry<UUID, ChatMode> entry : preferredChatMode.entrySet()) {
+            preferencesConfig.set("chat." + entry.getKey(), entry.getValue().name().toLowerCase(Locale.ROOT));
+        }
+        for (Map.Entry<UUID, RenameMode> entry : preferredRenameMode.entrySet()) {
+            preferencesConfig.set("rename." + entry.getKey(), entry.getValue().name().toLowerCase(Locale.ROOT));
+        }
+
+        try {
+            preferencesConfig.save(preferencesFile);
+        } catch (IOException ignored) {
+        }
     }
 
     private static int countMaterial(Player player, Material material) {
