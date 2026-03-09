@@ -54,6 +54,18 @@ Admin command:
 - `/leashplayers lang <en_US|de_DE>`
 - `/leashplayers status`
 - `/leashplayers debug`
+- `/leashplayers select <player>`
+- `/leashplayers temp <player>`
+- `/leashplayers permanent <player>`
+- `/leashplayers length <player> <value> [set|add]`
+- `/leashplayers anchor <player> <owner|entity|block>`
+- `/leashplayers clearname [player]`
+
+## Build (local)
+
+- Recommended one-liner (works without local Maven):
+  - `./scripts/build.sh`
+- If `target/` is root-owned, the script automatically builds to `.build/target`.
 
 
 # SoulLeash

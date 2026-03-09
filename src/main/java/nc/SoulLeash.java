@@ -41,6 +41,9 @@ public final class SoulLeash extends JavaPlugin {
 
         // 加载数据
         loadLeashData();  // 现在加载数据
+        leash.rebuildOwnershipIndex();
+        leash.loadAdvancedState();
+        leash.startOptOutComplianceTask();
 
         // 注册事件
         registerEvents();
@@ -128,15 +131,32 @@ public final class SoulLeash extends JavaPlugin {
             return;
         }
         leashMap.clear();
+
+        if (leashDataConfig.isConfigurationSection("state.owners")) {
+            leashDataConfig.getConfigurationSection("state.owners").getKeys(false).forEach(key -> {
+                try {
+                    UUID owner = UUID.fromString(key);
+                    List<UUID> followers = leashDataConfig.getStringList("state.owners." + key).stream()
+                            .map(UUID::fromString)
+                            .collect(Collectors.toList());
+                    leashMap.put(owner, followers);
+                } catch (IllegalArgumentException ignored) {
+                }
+            });
+            return;
+        }
+
         leashDataConfig.getKeys(false).forEach(key -> {
+            if (key.equals("state") || key.equals("pendingTeleport") || key.equals("fence_bounds")) {
+                return;
+            }
             try {
-                UUID sUUID = UUID.fromString(key);
-                List<UUID> boundUUIDs = leashDataConfig.getStringList(key).stream()
+                UUID owner = UUID.fromString(key);
+                List<UUID> followers = leashDataConfig.getStringList(key).stream()
                         .map(UUID::fromString)
                         .collect(Collectors.toList());
-                leashMap.put(sUUID, boundUUIDs);
-            } catch (IllegalArgumentException e) {
-                getLogger().warning("Invalid UUID format in leash data: " + key);  // 打印无效的 UUID 键
+                leashMap.put(owner, followers);
+            } catch (IllegalArgumentException ignored) {
             }
         });
     }
@@ -148,6 +168,10 @@ public final class SoulLeash extends JavaPlugin {
         }
         leashMap.forEach((uuid, mUUIDs) -> {
             leashDataConfig.set(uuid.toString(), mUUIDs.stream().map(UUID::toString).collect(Collectors.toList()));
+        });
+        leashDataConfig.set("state.owners", null);
+        leashMap.forEach((uuid, mUUIDs) -> {
+            leashDataConfig.set("state.owners." + uuid, mUUIDs.stream().map(UUID::toString).collect(Collectors.toList()));
         });
         try {
             leashDataConfig.save(leashDataFile);

@@ -145,6 +145,38 @@ public final class Settings {
         return config.getDouble("leash.follow.strengths.ground-y-boost", 0.3);
     }
 
+    public static double leashDefaultLength() {
+        return config.getDouble("leash.control.default-length", 7.0);
+    }
+
+    public static double leashLengthMin() {
+        return config.getDouble("leash.control.min-length", 2.0);
+    }
+
+    public static double leashLengthMax() {
+        return config.getDouble("leash.control.max-length", 64.0);
+    }
+
+    public static double leashTapPullStrength() {
+        return config.getDouble("leash.control.tap-pull-strength", 0.9);
+    }
+
+    public static double leashLengthPerSecond() {
+        return config.getDouble("leash.control.hold-length-per-second", 4.0);
+    }
+
+    public static long leashHoldMaxMs() {
+        return Math.max(500L, config.getLong("leash.control.hold-max-ms", 5000L));
+    }
+
+    public static double leashLengthMaxDeltaPerHold() {
+        return config.getDouble("leash.control.hold-max-delta", 20.0);
+    }
+
+    public static double leashTeleportSlack() {
+        return config.getDouble("leash.control.teleport-slack", 12.0);
+    }
+
     public static boolean leashStuckEnabled() {
         return config.getBoolean("leash.follow.stuck-detector.enabled", true);
     }

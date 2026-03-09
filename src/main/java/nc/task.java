@@ -79,6 +79,9 @@ public class task implements Listener {
                 List<UUID> mUUIDs = leashMap.get(playerUUID); // 获取与 S 绑定的所有 M（仆从） UUID
                 for (UUID mUUID : mUUIDs) {
                     Player m = Bukkit.getPlayer(mUUID); // 获取每个 M 的玩家对象
+                    if (leash.isTemporarilyDetached(mUUID)) {
+                        continue;
+                    }
                     if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) { // 新增判断：如果仆从被绑定在栅栏，跳过传送和绑定
                         continue;
                     }
@@ -100,6 +103,9 @@ public class task implements Listener {
                 Player s = Bukkit.getPlayer(sUUID); // 获取 S 的玩家对象
 
                 if (s != null && s.isOnline()) { // 如果 S 在线
+                    if (leash.isTemporarilyDetached(playerUUID)) {
+                        return;
+                    }
                     // 恢复绑定任务，让 M 跟随 S
                     startLeashTask(s, player);
                     if (Settings.featureCrossWorldSync()) {

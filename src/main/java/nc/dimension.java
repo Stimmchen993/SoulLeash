@@ -28,6 +28,9 @@ public class dimension implements Listener {
             List<UUID> mUUIDs = leashMap.get(sUUID); // 获取与 S 绑定的所有 M（仆从） UUID
             for (UUID mUUID : mUUIDs) {
                 Player m = Bukkit.getPlayer(mUUID); // 获取每个 M 的玩家对象
+                if (leash.isTemporarilyDetached(mUUID)) {
+                    continue;
+                }
                 if (m != null && m.isOnline()) { // 如果 M 在线
                     if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
                         continue;
@@ -46,6 +49,9 @@ public class dimension implements Listener {
         for (Map.Entry<UUID, List<UUID>> entry : leashMap.entrySet()) {
             if (entry.getValue().contains(sUUID)) { // 检查当前 S 是否绑定了玩家 M
                 UUID sUUIDKey = entry.getKey(); // 获取 S 的 UUID
+                if (leash.isTemporarilyDetached(sUUID)) {
+                    break;
+                }
                 Player sPlayer = Bukkit.getPlayer(sUUIDKey); // 获取绑定者 S 的玩家对象
 
                 if (sPlayer != null && sPlayer.isOnline()) { // 如果 S 在线
@@ -72,6 +78,9 @@ public class dimension implements Listener {
             List<UUID> mUUIDs = leashMap.get(playerUUID);  // 获取与 S 绑定的所有 M（仆从）UUID
             for (UUID mUUID : mUUIDs) {
                 Player m = Bukkit.getPlayer(mUUID);    // 获取每个 M 的玩家对象
+                if (leash.isTemporarilyDetached(mUUID)) {
+                    continue;
+                }
                 if (m != null && m.isOnline()) {       // 如果 M 在线
                     if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {
                         continue;
@@ -86,6 +95,9 @@ public class dimension implements Listener {
         for (Map.Entry<UUID, List<UUID>> entry : leashMap.entrySet()) {
             if (entry.getValue().contains(playerUUID)) { // 如果玩家是 M（被某个 S 绑定）
                 UUID sUUID = entry.getKey();            // 获取 S 的 UUID
+                if (leash.isTemporarilyDetached(playerUUID)) {
+                    break;
+                }
                 Player s = Bukkit.getPlayer(sUUID);     // 获取 S 的玩家对象
                 if (s != null && s.isOnline()) {        // 如果 S 在线
                     // 延迟 10 tick 后将 M 传送到 S 的位置

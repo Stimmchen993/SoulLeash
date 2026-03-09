@@ -3,8 +3,16 @@ plugin:
   disabled: "&cSouiLeash has been disabled."
 
 command:
-  usage: "&eUsage: &f/leashplayers <reload|lang|status|debug>"
+  usage: "&eUsage: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname>"
   no_permission: "&cYou do not have permission: &f{permission}"
+  players_only: "&cThis command can only be used by players."
+  player_not_found: "&cPlayer not found: &f{player}"
+  not_owned: "&cYou do not own &f{player}&c."
+  invalid_number: "&cInvalid number: &f{value}"
+  anchor_entity_missing: "&cLook at a non-player entity within 8 blocks and try again."
+  cannot_clearname_while_leashed: "&cYou can only clear your own leash-name when you are not currently leashed."
+  select:
+    success: "&aSelected &b{player}&a for leash controls."
   reload:
     success: "&aSouiLeash config reloaded. Active language: &f{lang}&a."
   lang:
@@ -24,7 +32,18 @@ command:
 leash:
   bound: "&dYou leashed &b{player}&d."
   unbound: "&cYou unleashed &b{player}&c."
+  temp_detached: "&eTemporarily detached &b{player}&e (ownership kept)."
+  temp_attached: "&aRe-attached &b{player}&a to their leash."
+  hold_started: "&7Hold sneak with your lead to extend leash length for &f{player}&7."
+  length_changed: "&aLeash length for &b{player}&a is now &f{length}&a blocks."
+  anchor_owner: "&aAnchor set to owner for &b{player}&a."
+  anchor_block: "&aAnchor set to your current block for &b{player}&a."
+  anchor_entity: "&aAnchor set to entity: &f{entity}&a."
+  name_set: "&aSet leash-name of &b{player}&a to &f{name}&a."
+  name_cleared: "&aCleared leash-name for &b{player}&a."
+  optout_disconnect: "&e{player} opted out of leash permission; all leash links were removed immediately."
   stuck_actionbar: "&eYour leashed player &d{player} &eseems stuck!"
+
 
 summon:
   cooldown: "&cSummon is on cooldown (&f{seconds}s&c remaining)."

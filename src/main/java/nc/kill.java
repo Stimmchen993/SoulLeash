@@ -30,6 +30,9 @@ public class kill implements Listener {
                     continue;
                 }
                 if (entry.getValue().contains(playerUUID)) {  // 如果 M 被某个 S 绑定
+                    if (leash.isTemporarilyDetached(playerUUID)) {
+                        break;
+                    }
                     UUID sUUID = entry.getKey();             // 获取 S 的 UUID
                     Player s = Bukkit.getPlayer(sUUID);      // 获取 S 的玩家对象
                     if (s != null && s.isOnline()) {         // S 在线时才执行
@@ -45,6 +48,9 @@ public class kill implements Listener {
             if (leashMap.containsKey(playerUUID)) {
                 List<UUID> mUUIDs = leashMap.get(playerUUID);  // 获取 S 绑定的所有 M UUID 列表
                 for (UUID mUUID : mUUIDs) {
+                    if (leash.isTemporarilyDetached(mUUID)) {
+                        continue;
+                    }
                     Player m = Bukkit.getPlayer(mUUID);
                     if (m != null && m.isOnline()) {            // M 在线时才执行
                         if (SoulLeash.getFenceLeashManager().isPlayerOnFence(m)) {

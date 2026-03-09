@@ -3,8 +3,9 @@ package nc;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.Bat;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityPortalEnterEvent;
@@ -42,7 +43,7 @@ public class Helper implements Listener {
      * @param target 被拴的玩家
      * @param holder 拴绳的玩家
      */
-    public static void attachLeash(Player target, Player holder) {
+    public static void attachLeash(Player target, Entity holder) {
 
         Location loc = target.getLocation().clone();
         float yaw = loc.getYaw();
@@ -80,6 +81,13 @@ public class Helper implements Listener {
                     return;
                 }
 
+                if (!holder.isValid()) {
+                    playerToLeashEntity.remove(target.getUniqueId());
+                    leashEntity.remove();
+                    cancel();
+                    return;
+                }
+
                 leashEntity.setInvulnerable(true);
                 leashEntity.setFireTicks(0);
 
@@ -94,6 +102,7 @@ public class Helper implements Listener {
                 loc.add(offsetX, offsetY, offsetZ);
 
                 leashEntity.teleport(loc);
+                leashEntity.setLeashHolder(holder);
             }
         }.runTaskTimer(plugin, 0L, 2L);
     }

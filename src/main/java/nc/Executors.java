@@ -1,47 +1,72 @@
 package nc;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
-/**
- * 指令执行类，用于处理 /soulleash 等主命令
- */
 public class Executors implements CommandExecutor, TabCompleter {
 
-    private SoulLeash main;
+    private final SoulLeash main;
 
-    // 构造方法，接受 SoulLeash 实例
     public Executors(SoulLeash main) {
         this.main = main;
     }
-    /**
-     * 处理命令逻辑
-     * @param sender 命令发送者
-     * @param command 命令对象
-     * @param label 命令标签（如 "soulleash"）
-     * @param args 命令参数（如 ["reload"]）
-     * @return true 表示成功执行命令，false 表示失败或未识别
-     */
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission(Settings.permissionAdmin())) {
-            Lang.send(sender, "command.no_permission", "permission", Settings.permissionAdmin());
-            return true;
-        }
-
         if (args.length == 0) {
             Lang.send(sender, "command.usage");
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("reload")) {
+        String sub = args[0].toLowerCase(Locale.ROOT);
+
+        if (sub.equals("clearname")) {
+            if (!(sender instanceof Player player)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+
+            if (args.length >= 2) {
+                if (!sender.hasPermission(Settings.permissionAdmin())) {
+                    Lang.send(sender, "command.no_permission", "permission", Settings.permissionAdmin());
+                    return true;
+                }
+                Player target = Bukkit.getPlayerExact(args[1]);
+                if (target == null) {
+                    Lang.send(sender, "command.player_not_found", "player", args[1]);
+                    return true;
+                }
+                leash.clearCustomName(target.getUniqueId());
+                Lang.send(sender, "leash.name_cleared", "player", target.getName());
+                return true;
+            }
+
+            if (leash.isCurrentlyLeashed(player.getUniqueId())) {
+                Lang.send(sender, "command.cannot_clearname_while_leashed");
+                return true;
+            }
+            leash.clearCustomName(player.getUniqueId());
+            Lang.send(sender, "leash.name_cleared", "player", player.getName());
+            return true;
+        }
+
+        if (!sender.hasPermission(Settings.permissionAdmin())) {
+            Lang.send(sender, "command.no_permission", "permission", Settings.permissionAdmin());
+            return true;
+        }
+
+        if (sub.equals("reload")) {
             main.reloadConfig();
             Settings.reload();
             Lang.reload();
@@ -49,7 +74,7 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("lang")) {
+        if (sub.equals("lang")) {
             if (args.length == 1) {
                 Lang.send(sender, "command.lang.current", "lang", Lang.getCurrentLanguage());
                 return true;
@@ -63,13 +88,152 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("status")) {
+        if (sub.equals("status")) {
             sendStatus(sender);
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("debug")) {
+        if (sub.equals("debug")) {
             sendDebug(sender);
+            return true;
+        }
+
+        if (sub.equals("select") && args.length >= 2) {
+            if (!(sender instanceof Player owner)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            Player follower = Bukkit.getPlayerExact(args[1]);
+            if (follower == null) {
+                Lang.send(sender, "command.player_not_found", "player", args[1]);
+                return true;
+            }
+            if (!leash.isOwnedBy(owner.getUniqueId(), follower.getUniqueId())) {
+                Lang.send(sender, "command.not_owned", "player", follower.getName());
+                return true;
+            }
+            leash.setSelectedFollower(owner.getUniqueId(), follower.getUniqueId());
+            Lang.send(sender, "command.select.success", "player", follower.getName());
+            return true;
+        }
+
+        if (sub.equals("temp") && args.length >= 2) {
+            if (!(sender instanceof Player owner)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            Player follower = Bukkit.getPlayerExact(args[1]);
+            if (follower == null) {
+                Lang.send(sender, "command.player_not_found", "player", args[1]);
+                return true;
+            }
+            if (leash.temporaryToggle(owner.getUniqueId(), follower.getUniqueId())) {
+                if (leash.isTemporarilyDetached(follower.getUniqueId())) {
+                    Lang.send(sender, "leash.temp_detached", "player", follower.getName());
+                } else {
+                    Lang.send(sender, "leash.temp_attached", "player", follower.getName());
+                }
+                return true;
+            }
+            Lang.send(sender, "command.not_owned", "player", follower.getName());
+            return true;
+        }
+
+        if (sub.equals("permanent") && args.length >= 2) {
+            if (!(sender instanceof Player owner)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            Player follower = Bukkit.getPlayerExact(args[1]);
+            if (follower == null) {
+                Lang.send(sender, "command.player_not_found", "player", args[1]);
+                return true;
+            }
+            if (leash.permanentlyDetach(owner.getUniqueId(), follower.getUniqueId())) {
+                Lang.send(sender, "leash.unbound", "player", follower.getName());
+                return true;
+            }
+            Lang.send(sender, "command.not_owned", "player", follower.getName());
+            return true;
+        }
+
+        if (sub.equals("length") && args.length >= 3) {
+            if (!(sender instanceof Player owner)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            Player follower = Bukkit.getPlayerExact(args[1]);
+            if (follower == null) {
+                Lang.send(sender, "command.player_not_found", "player", args[1]);
+                return true;
+            }
+
+            double value;
+            try {
+                value = Double.parseDouble(args[2]);
+            } catch (NumberFormatException ex) {
+                Lang.send(sender, "command.invalid_number", "value", args[2]);
+                return true;
+            }
+
+            boolean ok;
+            if (args.length >= 4 && args[3].equalsIgnoreCase("add")) {
+                ok = leash.addLength(owner.getUniqueId(), follower.getUniqueId(), value);
+            } else {
+                ok = leash.setLength(owner.getUniqueId(), follower.getUniqueId(), value);
+            }
+
+            if (!ok) {
+                Lang.send(sender, "command.not_owned", "player", follower.getName());
+                return true;
+            }
+
+            Lang.send(sender, "leash.length_changed",
+                    "player", follower.getName(),
+                    "length", String.format(Locale.US, "%.1f", leash.getLength(follower.getUniqueId())));
+            return true;
+        }
+
+        if (sub.equals("anchor") && args.length >= 3) {
+            if (!(sender instanceof Player owner)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            Player follower = Bukkit.getPlayerExact(args[1]);
+            if (follower == null) {
+                Lang.send(sender, "command.player_not_found", "player", args[1]);
+                return true;
+            }
+            if (!leash.isOwnedBy(owner.getUniqueId(), follower.getUniqueId())) {
+                Lang.send(sender, "command.not_owned", "player", follower.getName());
+                return true;
+            }
+
+            String mode = args[2].toLowerCase(Locale.ROOT);
+            if (mode.equals("owner")) {
+                leash.setAnchorToOwner(owner.getUniqueId(), follower.getUniqueId());
+                leash.resumeLeash(owner.getUniqueId(), follower.getUniqueId());
+                Lang.send(sender, "leash.anchor_owner", "player", follower.getName());
+                return true;
+            }
+            if (mode.equals("block")) {
+                leash.setAnchorToBlock(owner.getUniqueId(), follower.getUniqueId(), owner.getLocation());
+                leash.resumeLeash(owner.getUniqueId(), follower.getUniqueId());
+                Lang.send(sender, "leash.anchor_block", "player", follower.getName());
+                return true;
+            }
+            if (mode.equals("entity")) {
+                Entity target = owner.getTargetEntity(8);
+                if (target == null || target instanceof Player) {
+                    Lang.send(sender, "command.anchor_entity_missing");
+                    return true;
+                }
+                leash.setAnchorToEntity(owner.getUniqueId(), follower.getUniqueId(), target);
+                leash.resumeLeash(owner.getUniqueId(), follower.getUniqueId());
+                Lang.send(sender, "leash.anchor_entity", "entity", target.getType().name().toLowerCase(Locale.ROOT));
+                return true;
+            }
+            Lang.send(sender, "command.usage");
             return true;
         }
 
@@ -77,24 +241,33 @@ public class Executors implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    /**
-     * 自动补全命令参数
-     * @param sender 命令发送者
-     * @param command 命令对象
-     * @param label 命令标签
-     * @param args 当前输入的参数
-     * @return 补全建议列表
-     */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
-            StringUtil.copyPartialMatches(args[0], Arrays.asList("reload", "lang", "status", "debug"), completions);
+            StringUtil.copyPartialMatches(args[0], Arrays.asList(
+                    "reload", "lang", "status", "debug", "select", "temp", "permanent", "length", "anchor", "clearname"
+            ), completions);
             return completions;
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("lang")) {
             StringUtil.copyPartialMatches(args[1], Arrays.asList("en_US", "de_DE"), completions);
+            return completions;
+        }
+
+        if (args.length == 2 && Arrays.asList("select", "temp", "permanent", "length", "anchor").contains(args[0].toLowerCase(Locale.ROOT))) {
+            StringUtil.copyPartialMatches(args[1], Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), completions);
+            return completions;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("anchor")) {
+            StringUtil.copyPartialMatches(args[2], Arrays.asList("owner", "entity", "block"), completions);
+            return completions;
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("length")) {
+            StringUtil.copyPartialMatches(args[3], Arrays.asList("set", "add"), completions);
         }
 
         return completions;

@@ -1,236 +1,833 @@
 package nc;
 
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LeashHitch;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static nc.SoulLeash.*;
-
+import static nc.SoulLeash.instance;
+import static nc.SoulLeash.leashDataConfig;
+import static nc.SoulLeash.leashMap;
+import static nc.SoulLeash.leashTasks;
 
 public class leash implements Listener {
-    // 玩家右键其他实体事件（用于绑定或解绑玩家）
-    @EventHandler
-    public void onLeash(PlayerInteractAtEntityEvent e) {
-        if (!Settings.featureLeashInteractions()) return;
-        // 如果右键的不是玩家，直接返回
-        if (!(e.getRightClicked() instanceof Player)) return;
-        // 只处理主手的交互（防止副手触发）
-        if (!e.getHand().equals(EquipmentSlot.HAND)) return;
+    private enum AnchorType {
+        OWNER,
+        ENTITY,
+        BLOCK
+    }
 
-        // s：交互发起者（主人）
-        Player s = e.getPlayer();
-        // m：被交互者（目标玩家）
-        Player m = (Player) e.getRightClicked();
+    private static final class AnchorState {
+        private final AnchorType type;
+        private final UUID entityId;
+        private final Location blockLocation;
 
-        // 权限检查：s 必须拥有使用权限，m 必须允许被拴住
-        if (!s.hasPermission(Settings.permissionUse())) return;
-        if (!m.hasPermission(Settings.permissionLeashable())) return;
-
-        UUID sUUID = s.getUniqueId(); // 主人的 UUID
-        UUID mUUID = m.getUniqueId(); // 被拴者的 UUID
-
-        // ----------- 使用绳子进行绑定逻辑 -----------
-        if (s.getInventory().getItemInMainHand().getType() == Material.LEAD) {
-            // 如果目标玩家已经被绑定，就不重复绑定
-            if (isAlreadyBound(mUUID)) return;
-            // 若该主人还没有绑定列表，则创建一个
-            leashMap.putIfAbsent(sUUID, new ArrayList<>());
-            // 将目标玩家加入主人的绑定列表
-            leashMap.get(sUUID).add(mUUID);
-            // 保存到配置文件（将 UUID 转为字符串）
-            SoulLeash.leashDataConfig.set(
-                    sUUID.toString(),
-                    leashMap.get(sUUID).stream().map(UUID::toString).collect(Collectors.toList())
-            );
-            instance.saveLeashData();
-            Helper.attachLeash(m, s);
-
-            // 启动绑定状态下的效果任务
-            startLeashTask(s, m);
-            // 提示消息
-            Lang.send(s, "leash.bound", "player", m.getName());
+        private AnchorState(AnchorType type, UUID entityId, Location blockLocation) {
+            this.type = type;
+            this.entityId = entityId;
+            this.blockLocation = blockLocation;
         }
 
-        // ----------- 使用剑解除绑定逻辑 -----------
-        if (isSword(s.getInventory().getItemInMainHand().getType())) {
-            // 检查是否已经绑定
-            if (leashMap.containsKey(sUUID) && leashMap.get(sUUID).contains(mUUID)) {
-                // 从绑定列表中移除该玩家
-                leashMap.get(sUUID).remove(mUUID);
+        private static AnchorState owner() {
+            return new AnchorState(AnchorType.OWNER, null, null);
+        }
 
-                // 如果该主人的绑定列表为空，则从 map 中移除，并删除配置项
-                if (leashMap.get(sUUID).isEmpty()) {
-                    leashMap.remove(sUUID);
-                    leashDataConfig.set(sUUID.toString(), null);
-                } else {
-                    // 否则更新配置文件中的 UUID 列表
-                    leashDataConfig.set(
-                            sUUID.toString(),
-                            leashMap.get(sUUID).stream().map(UUID::toString).collect(Collectors.toList())
-                    );
+        private static AnchorState entity(UUID id) {
+            return new AnchorState(AnchorType.ENTITY, id, null);
+        }
+
+        private static AnchorState block(Location location) {
+            return new AnchorState(AnchorType.BLOCK, null, location.clone());
+        }
+    }
+
+    private static final Map<UUID, UUID> ownerByFollower = new ConcurrentHashMap<>();
+    private static final Map<UUID, AnchorState> anchorByFollower = new ConcurrentHashMap<>();
+    private static final Map<UUID, Double> maxLengthByFollower = new ConcurrentHashMap<>();
+    private static final Set<UUID> temporaryDetached = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, UUID> selectedFollowerByOwner = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> customNameByFollower = new ConcurrentHashMap<>();
+    private static final Map<UUID, HoldAdjustSession> holdAdjustSessions = new ConcurrentHashMap<>();
+
+    private static final class HoldAdjustSession {
+        private final UUID owner;
+        private final UUID follower;
+        private final long startedAt;
+
+        private HoldAdjustSession(UUID owner, UUID follower) {
+            this.owner = owner;
+            this.follower = follower;
+            this.startedAt = System.currentTimeMillis();
+        }
+    }
+
+    public static void rebuildOwnershipIndex() {
+        ownerByFollower.clear();
+        leashMap.forEach((owner, followers) -> {
+            for (UUID follower : followers) {
+                ownerByFollower.put(follower, owner);
+            }
+        });
+    }
+
+    public static UUID getOwner(UUID follower) {
+        return ownerByFollower.get(follower);
+    }
+
+    public static boolean isOwnedBy(UUID owner, UUID follower) {
+        return owner.equals(ownerByFollower.get(follower));
+    }
+
+    public static boolean isTemporarilyDetached(UUID follower) {
+        return temporaryDetached.contains(follower);
+    }
+
+    public static UUID getSelectedFollower(UUID owner) {
+        return selectedFollowerByOwner.get(owner);
+    }
+
+    public static void setSelectedFollower(UUID owner, UUID follower) {
+        selectedFollowerByOwner.put(owner, follower);
+    }
+
+    public static boolean isCurrentlyLeashed(UUID follower) {
+        return ownerByFollower.containsKey(follower);
+    }
+
+    public static boolean hasCustomName(UUID follower) {
+        return customNameByFollower.containsKey(follower);
+    }
+
+    public static boolean clearCustomName(UUID follower) {
+        customNameByFollower.remove(follower);
+        Player player = Bukkit.getPlayer(follower);
+        if (player != null && player.isOnline()) {
+            player.customName(null);
+            player.setCustomNameVisible(false);
+        }
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean setCustomName(UUID owner, UUID follower, String customName) {
+        if (!isOwnedBy(owner, follower) || customName == null || customName.isBlank()) {
+            return false;
+        }
+        customNameByFollower.put(follower, customName);
+        Player player = Bukkit.getPlayer(follower);
+        if (player != null && player.isOnline()) {
+            player.customName(net.kyori.adventure.text.Component.text(customName));
+            player.setCustomNameVisible(true);
+        }
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean setLength(UUID owner, UUID follower, double length) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+        double clamped = Math.max(Settings.leashLengthMin(), Math.min(Settings.leashLengthMax(), length));
+        maxLengthByFollower.put(follower, clamped);
+        persistAdvancedState();
+        return true;
+    }
+
+    public static double getLength(UUID follower) {
+        return maxLengthByFollower.getOrDefault(follower, Settings.leashDefaultLength());
+    }
+
+    public static boolean addLength(UUID owner, UUID follower, double delta) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+        return setLength(owner, follower, getLength(follower) + delta);
+    }
+
+    public static boolean permanentlyDetach(UUID owner, UUID follower) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+
+        List<UUID> followers = leashMap.get(owner);
+        if (followers != null) {
+            followers.remove(follower);
+            if (followers.isEmpty()) {
+                leashMap.remove(owner);
+                leashDataConfig.set(owner.toString(), null);
+            } else {
+                leashDataConfig.set(owner.toString(), followers.stream().map(UUID::toString).collect(Collectors.toList()));
+            }
+        }
+
+        ownerByFollower.remove(follower);
+        anchorByFollower.remove(follower);
+        maxLengthByFollower.remove(follower);
+        temporaryDetached.remove(follower);
+        selectedFollowerByOwner.entrySet().removeIf(entry -> entry.getValue().equals(follower));
+
+        Helper.removeLeash(follower);
+        clearLeashTask(follower);
+        clearFenceBinding(follower);
+        persistAdvancedState();
+        instance.saveLeashData();
+        return true;
+    }
+
+    public static void startOptOutComplianceTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                Set<UUID> toDisconnect = new HashSet<>();
+                for (UUID follower : ownerByFollower.keySet()) {
+                    Player player = Bukkit.getPlayer(follower);
+                    if (player != null && player.isOnline() && !player.hasPermission(Settings.permissionLeashable())) {
+                        toDisconnect.add(follower);
+                    }
                 }
-                Helper.removeLeash(m.getUniqueId());
-                Fence.removeFence(sUUID,mUUID);  // 从栅栏绑定缓存移除
-                leashDataConfig.set("fence_bounds." + mUUID.toString(), null);  // 配置文件中删除
-                // 保存到文件
-                instance.saveLeashData();
+                for (UUID follower : toDisconnect) {
+                    disconnectPlayerFromAllLeashes(follower, true);
+                }
 
-                // 取消目标玩家身上的效果任务
-                clearLeashTask(mUUID);
+                Set<UUID> toClearOnly = new HashSet<>();
+                for (UUID follower : customNameByFollower.keySet()) {
+                    if (toDisconnect.contains(follower)) {
+                        continue;
+                    }
+                    Player player = Bukkit.getPlayer(follower);
+                    if (player != null && player.isOnline() && !player.hasPermission(Settings.permissionLeashable())) {
+                        toClearOnly.add(follower);
+                    }
+                }
+                for (UUID follower : toClearOnly) {
+                    clearCustomName(follower);
+                }
+            }
+        }.runTaskTimer(instance, 20L, 20L);
+    }
 
-                // 提示消息
-                Lang.send(s, "leash.unbound", "player", m.getName());
+    public static void disconnectPlayerFromAllLeashes(UUID player, boolean clearName) {
+        UUID owner = ownerByFollower.get(player);
+        if (owner != null) {
+            permanentlyDetach(owner, player);
+        }
+
+        List<UUID> followersOwned = new ArrayList<>(leashMap.getOrDefault(player, Collections.emptyList()));
+        for (UUID follower : followersOwned) {
+            permanentlyDetach(player, follower);
+        }
+
+        if (clearName) {
+            clearCustomName(player);
+        }
+    }
+
+    public static boolean temporaryToggle(UUID owner, UUID follower) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+
+        if (temporaryDetached.contains(follower)) {
+            temporaryDetached.remove(follower);
+            resumeLeash(owner, follower);
+        } else {
+            temporaryDetached.add(follower);
+            Helper.removeLeash(follower);
+            clearLeashTask(follower);
+        }
+
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean resumeLeash(UUID owner, UUID follower) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+        temporaryDetached.remove(follower);
+        Player ownerPlayer = Bukkit.getPlayer(owner);
+        Player followerPlayer = Bukkit.getPlayer(follower);
+        if (ownerPlayer != null && ownerPlayer.isOnline() && followerPlayer != null && followerPlayer.isOnline()) {
+            ensureVisualLeash(ownerPlayer, followerPlayer);
+            startLeashTask(ownerPlayer, followerPlayer);
+        }
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean setAnchorToOwner(UUID owner, UUID follower) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+        anchorByFollower.put(follower, AnchorState.owner());
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean setAnchorToEntity(UUID owner, UUID follower, Entity entity) {
+        if (!isOwnedBy(owner, follower)) {
+            return false;
+        }
+        if (entity == null || !entity.isValid()) {
+            return false;
+        }
+        anchorByFollower.put(follower, AnchorState.entity(entity.getUniqueId()));
+        temporaryDetached.remove(follower);
+
+        Player followerPlayer = Bukkit.getPlayer(follower);
+        if (followerPlayer != null && followerPlayer.isOnline()) {
+            ensureVisualLeash(entity, followerPlayer);
+        }
+
+        persistAdvancedState();
+        return true;
+    }
+
+    public static boolean setAnchorToBlock(UUID owner, UUID follower, Location location) {
+        if (!isOwnedBy(owner, follower) || location == null) {
+            return false;
+        }
+
+        Location anchor = location.clone();
+        Block block = anchor.getBlock();
+        if (isFence(block.getType())) {
+            LeashHitch hitch = block.getWorld().spawn(block.getLocation().add(0.5, 0.5, 0.5), LeashHitch.class);
+            anchorByFollower.put(follower, AnchorState.entity(hitch.getUniqueId()));
+        } else {
+            anchorByFollower.put(follower, AnchorState.block(anchor));
+        }
+
+        temporaryDetached.remove(follower);
+        persistAdvancedState();
+        return true;
+    }
+
+    public static void pullAndLook(UUID owner, UUID follower) {
+        if (!isOwnedBy(owner, follower) || temporaryDetached.contains(follower)) {
+            return;
+        }
+
+        Player ownerPlayer = Bukkit.getPlayer(owner);
+        Player followerPlayer = Bukkit.getPlayer(follower);
+        if (ownerPlayer == null || followerPlayer == null || !ownerPlayer.isOnline() || !followerPlayer.isOnline()) {
+            return;
+        }
+
+        Location ownerLoc = ownerPlayer.getLocation();
+        Location followerLoc = followerPlayer.getLocation();
+        double distance = ownerLoc.distance(followerLoc);
+
+        if (distance > Settings.leashTeleportDistance()) {
+            followerPlayer.teleport(ownerLoc);
+        } else {
+            Vector towardOwner = ownerLoc.toVector().subtract(followerLoc.toVector()).normalize().multiply(Settings.leashTapPullStrength());
+            followerPlayer.setVelocity(followerPlayer.getVelocity().add(towardOwner));
+        }
+
+        Lookat.performSoulLeashLook(ownerPlayer);
+    }
+
+    private static boolean bind(UUID owner, UUID follower) {
+        if (ownerByFollower.containsKey(follower)) {
+            return false;
+        }
+
+        leashMap.putIfAbsent(owner, new ArrayList<>());
+        leashMap.get(owner).add(follower);
+        ownerByFollower.put(follower, owner);
+        anchorByFollower.put(follower, AnchorState.owner());
+        maxLengthByFollower.put(follower, Settings.leashDefaultLength());
+        selectedFollowerByOwner.put(owner, follower);
+        temporaryDetached.remove(follower);
+
+        leashDataConfig.set(owner.toString(), leashMap.get(owner).stream().map(UUID::toString).collect(Collectors.toList()));
+        persistAdvancedState();
+        instance.saveLeashData();
+        return true;
+    }
+
+    private static void persistAdvancedState() {
+        leashDataConfig.set("state.owners", null);
+        leashDataConfig.set("state.temporaryDetached", temporaryDetached.stream().map(UUID::toString).collect(Collectors.toList()));
+
+        Map<String, Double> lengths = new HashMap<>();
+        maxLengthByFollower.forEach((uuid, length) -> lengths.put(uuid.toString(), length));
+        leashDataConfig.set("state.lengths", lengths);
+
+        Map<String, String> selected = new HashMap<>();
+        selectedFollowerByOwner.forEach((owner, follower) -> selected.put(owner.toString(), follower.toString()));
+        leashDataConfig.set("state.selected", selected);
+
+        Map<String, String> names = new HashMap<>();
+        customNameByFollower.forEach((follower, name) -> names.put(follower.toString(), name));
+        leashDataConfig.set("state.customNames", names);
+
+        leashDataConfig.set("state.anchors", null);
+        anchorByFollower.forEach((follower, anchorState) -> {
+            String path = "state.anchors." + follower;
+            leashDataConfig.set(path + ".type", anchorState.type.name());
+            if (anchorState.entityId != null) {
+                leashDataConfig.set(path + ".entity", anchorState.entityId.toString());
+            }
+            if (anchorState.blockLocation != null) {
+                leashDataConfig.set(path + ".block", anchorState.blockLocation.serialize());
+            }
+        });
+
+        instance.saveLeashData();
+    }
+
+    public static void loadAdvancedState() {
+        temporaryDetached.clear();
+        maxLengthByFollower.clear();
+        selectedFollowerByOwner.clear();
+        anchorByFollower.clear();
+        customNameByFollower.clear();
+
+        List<String> detached = leashDataConfig.getStringList("state.temporaryDetached");
+        for (String uuid : detached) {
+            try {
+                temporaryDetached.add(UUID.fromString(uuid));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        if (leashDataConfig.isConfigurationSection("state.lengths")) {
+            for (String key : Objects.requireNonNull(leashDataConfig.getConfigurationSection("state.lengths")).getKeys(false)) {
+                try {
+                    maxLengthByFollower.put(UUID.fromString(key), leashDataConfig.getDouble("state.lengths." + key));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+
+        if (leashDataConfig.isConfigurationSection("state.selected")) {
+            for (String key : Objects.requireNonNull(leashDataConfig.getConfigurationSection("state.selected")).getKeys(false)) {
+                try {
+                    UUID owner = UUID.fromString(key);
+                    UUID follower = UUID.fromString(Objects.requireNonNull(leashDataConfig.getString("state.selected." + key)));
+                    selectedFollowerByOwner.put(owner, follower);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        if (leashDataConfig.isConfigurationSection("state.customNames")) {
+            for (String key : Objects.requireNonNull(leashDataConfig.getConfigurationSection("state.customNames")).getKeys(false)) {
+                try {
+                    UUID follower = UUID.fromString(key);
+                    String name = leashDataConfig.getString("state.customNames." + key);
+                    if (name != null && !name.isBlank()) {
+                        customNameByFollower.put(follower, name);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        if (leashDataConfig.isConfigurationSection("state.anchors")) {
+            for (String key : Objects.requireNonNull(leashDataConfig.getConfigurationSection("state.anchors")).getKeys(false)) {
+                try {
+                    UUID follower = UUID.fromString(key);
+                    String typeRaw = leashDataConfig.getString("state.anchors." + key + ".type", "OWNER");
+                    AnchorType type = AnchorType.valueOf(typeRaw.toUpperCase(Locale.ROOT));
+                    if (type == AnchorType.ENTITY) {
+                        String entityRaw = leashDataConfig.getString("state.anchors." + key + ".entity");
+                        if (entityRaw != null) {
+                            anchorByFollower.put(follower, AnchorState.entity(UUID.fromString(entityRaw)));
+                        }
+                    } else if (type == AnchorType.BLOCK) {
+                        if (leashDataConfig.isConfigurationSection("state.anchors." + key + ".block")) {
+                            Map<String, Object> map = Objects.requireNonNull(leashDataConfig.getConfigurationSection("state.anchors." + key + ".block")).getValues(false);
+                            anchorByFollower.put(follower, AnchorState.block(Location.deserialize(map)));
+                        }
+                    } else {
+                        anchorByFollower.put(follower, AnchorState.owner());
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        for (Map.Entry<UUID, String> entry : customNameByFollower.entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player != null && player.isOnline()) {
+                player.customName(net.kyori.adventure.text.Component.text(entry.getValue()));
+                player.setCustomNameVisible(true);
             }
         }
     }
-    // 启动一个任务让 M（仆从）始终跟随 S（主人）
-    static void startLeashTask(Player s, Player m) {
-        if (!Settings.featureLeashFollowTask()) {
+
+    @EventHandler
+    public void onLeashPlayer(PlayerInteractAtEntityEvent e) {
+        if (!Settings.featureLeashInteractions()) return;
+        if (!(e.getRightClicked() instanceof Player target)) return;
+        if (e.getHand() != EquipmentSlot.HAND) return;
+
+        Player owner = e.getPlayer();
+        if (!owner.hasPermission(Settings.permissionUse())) return;
+        if (!target.hasPermission(Settings.permissionLeashable())) return;
+
+        UUID ownerId = owner.getUniqueId();
+        UUID targetId = target.getUniqueId();
+        Material hand = owner.getInventory().getItemInMainHand().getType();
+
+        if (hand == Material.NAME_TAG && isOwnedBy(ownerId, targetId)) {
+            ItemStack stack = owner.getInventory().getItemInMainHand();
+            ItemMeta meta = stack.getItemMeta();
+            if (meta != null && meta.hasDisplayName()) {
+                String name = meta.getDisplayName();
+                if (!name.isBlank() && setCustomName(ownerId, targetId, name)) {
+                    e.setCancelled(true);
+                    if (owner.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                        if (stack.getAmount() <= 1) {
+                            owner.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                        } else {
+                            stack.setAmount(stack.getAmount() - 1);
+                        }
+                    }
+                    Lang.send(owner, "leash.name_set", "player", target.getName(), "name", name);
+                }
+            }
             return;
         }
-        if (getFenceLeashManager().isPlayerOnFence(m)) {
-            return; // 取消传送或传送逻辑
+
+        if (hand == Material.LEAD) {
+            e.setCancelled(true);
+            UUID existingOwner = ownerByFollower.get(targetId);
+            if (existingOwner == null) {
+                if (bind(ownerId, targetId)) {
+                    ensureVisualLeash(owner, target);
+                    startLeashTask(owner, target);
+                    Lang.send(owner, "leash.bound", "player", target.getName());
+                }
+                return;
+            }
+
+            if (!existingOwner.equals(ownerId)) {
+                return;
+            }
+
+            if (temporaryToggle(ownerId, targetId)) {
+                if (isTemporarilyDetached(targetId)) {
+                    Lang.send(owner, "leash.temp_detached", "player", target.getName());
+                } else {
+                    Lang.send(owner, "leash.temp_attached", "player", target.getName());
+                }
+            }
+            return;
         }
 
-        // 如果 M 已经有一个任务在运行，取消当前任务
-        if (leashTasks.containsKey(m.getUniqueId())) {
-            leashTasks.get(m.getUniqueId()).cancel();
+        if (isSwordOrAxe(hand)) {
+            e.setCancelled(true);
+            if (permanentlyDetach(ownerId, targetId)) {
+                Lang.send(owner, "leash.unbound", "player", target.getName());
+            }
+        }
+    }
+
+    @EventHandler
+    public void onAnchorEntity(PlayerInteractEntityEvent e) {
+        if (!Settings.featureLeashInteractions()) return;
+        if (e.getHand() != EquipmentSlot.HAND) return;
+
+        Player owner = e.getPlayer();
+        if (owner.getInventory().getItemInMainHand().getType() != Material.LEAD) return;
+        if (e.getRightClicked() instanceof Player) return;
+
+        UUID ownerId = owner.getUniqueId();
+        UUID followerId = selectedFollowerByOwner.get(ownerId);
+        if (followerId == null || !isOwnedBy(ownerId, followerId)) {
+            return;
         }
 
-        // 用于记录 M 的上次位置和卡住开始时间
+        e.setCancelled(true);
+        if (setAnchorToEntity(ownerId, followerId, e.getRightClicked())) {
+            Player follower = Bukkit.getPlayer(followerId);
+            if (follower != null) {
+                startLeashTask(owner, follower);
+            }
+            Lang.send(owner, "leash.anchor_entity", "entity", e.getRightClicked().getType().name().toLowerCase(Locale.ROOT));
+        }
+    }
+
+    @EventHandler
+    public void onLeadTapOrHold(PlayerInteractEvent e) {
+        if (!Settings.featureLeashInteractions()) return;
+        if (e.getHand() != EquipmentSlot.HAND) return;
+
+        Action action = e.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        Player owner = e.getPlayer();
+        if (owner.getInventory().getItemInMainHand().getType() != Material.LEAD) return;
+
+        UUID ownerId = owner.getUniqueId();
+        UUID followerId = selectedFollowerByOwner.get(ownerId);
+        if (followerId == null || !isOwnedBy(ownerId, followerId)) {
+            return;
+        }
+
+        if (action == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null) {
+            if (setAnchorToBlock(ownerId, followerId, e.getClickedBlock().getLocation().add(0.5, 1.0, 0.5))) {
+                Player follower = Bukkit.getPlayer(followerId);
+                if (follower != null && follower.isOnline()) {
+                    startLeashTask(owner, follower);
+                }
+            }
+        }
+
+        if (owner.isSneaking()) {
+            startHoldAdjust(owner, followerId);
+            e.setCancelled(true);
+            return;
+        }
+
+        pullAndLook(ownerId, followerId);
+    }
+
+    private void startHoldAdjust(Player owner, UUID followerId) {
+        UUID ownerId = owner.getUniqueId();
+        if (holdAdjustSessions.containsKey(ownerId)) {
+            return;
+        }
+
+        HoldAdjustSession session = new HoldAdjustSession(ownerId, followerId);
+        holdAdjustSessions.put(ownerId, session);
+        String followerName = Bukkit.getOfflinePlayer(followerId).getName();
+        Lang.send(owner, "leash.hold_started", "player", followerName == null ? followerId.toString() : followerName);
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                HoldAdjustSession current = holdAdjustSessions.get(ownerId);
+                if (current == null) {
+                    cancel();
+                    return;
+                }
+
+                Player currentOwner = Bukkit.getPlayer(current.owner);
+                if (currentOwner == null || !currentOwner.isOnline()) {
+                    holdAdjustSessions.remove(ownerId);
+                    cancel();
+                    return;
+                }
+
+                boolean stillHolding = currentOwner.getInventory().getItemInMainHand().getType() == Material.LEAD && currentOwner.isSneaking();
+                if (stillHolding && System.currentTimeMillis() - current.startedAt <= Settings.leashHoldMaxMs()) {
+                    return;
+                }
+
+                holdAdjustSessions.remove(ownerId);
+                long heldMs = Math.max(0L, System.currentTimeMillis() - current.startedAt);
+                double delta = Math.min(Settings.leashLengthMaxDeltaPerHold(), heldMs / 1000.0D * Settings.leashLengthPerSecond());
+                if (setLength(current.owner, current.follower, getLength(current.follower) + delta)) {
+                    Player follower = Bukkit.getPlayer(current.follower);
+                    String followerName = follower != null ? follower.getName() : String.valueOf(current.follower);
+                    Lang.send(currentOwner, "leash.length_changed",
+                            "player", followerName,
+                            "length", String.format(Locale.US, "%.1f", getLength(current.follower)));
+                }
+                cancel();
+            }
+        }.runTaskTimer(instance, 1L, 1L);
+    }
+
+    static void startLeashTask(Player owner, Player follower) {
+        if (!Settings.featureLeashFollowTask()) return;
+
+        UUID followerId = follower.getUniqueId();
+        if (temporaryDetached.contains(followerId)) {
+            clearLeashTask(followerId);
+            return;
+        }
+
+        if (leashTasks.containsKey(followerId)) {
+            leashTasks.get(followerId).cancel();
+        }
+
         final Location[] lastLocation = {null};
         final long[] stuckStartTime = {0};
 
-        // 创建一个新的任务（每 tick 执行一次）
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
-                // 检查是否已解除绑定，如果解除则取消任务并禁用飞行
-                if (!isLeashed(s.getUniqueId(), m.getUniqueId())) {
-                    cancel();
-                    m.setAllowFlight(false); // 解除绑定时禁用飞行
-                    leashTasks.remove(m.getUniqueId());
-                    return;
-                }
-
-                // 检查 S 和 M 是否在线，若不在线则取消任务
-                if (!s.isOnline() || !m.isOnline()) {
+                UUID ownerId = ownerByFollower.get(followerId);
+                if (ownerId == null) {
+                    clearLeashTask(followerId);
                     cancel();
                     return;
                 }
 
-                // 获取 S 和 M 当前的位置
-                Location sLoc = s.getLocation();
-                Location mLoc = m.getLocation();
-
-                // 强制 M 跟随 S，如果他们不在同一个世界，传送 M 到 S
-                if (!sLoc.getWorld().equals(mLoc.getWorld())) {
-                    Helper.removeLeash(m.getUniqueId());
-                    m.teleport(sLoc);
-                    Helper.attachLeash(m, s);
+                Player currentOwner = Bukkit.getPlayer(ownerId);
+                Player currentFollower = Bukkit.getPlayer(followerId);
+                if (currentOwner == null || currentFollower == null || !currentOwner.isOnline() || !currentFollower.isOnline()) {
+                    cancel();
                     return;
                 }
 
-                // 计算 S 和 M 的距离
-                double distance = sLoc.distance(mLoc);
+                if (!currentFollower.hasPermission(Settings.permissionLeashable())) {
+                    disconnectPlayerFromAllLeashes(followerId, true);
+                    Lang.send(currentOwner, "leash.optout_disconnect", "player", currentFollower.getName());
+                    cancel();
+                    return;
+                }
 
-                // 卡住检测逻辑：检测 M 是否卡住，若卡住超过 3 秒，发送提示
-                if (Settings.leashStuckEnabled() && distance > Settings.leashStuckCheckDistanceMin()) {
+                if (temporaryDetached.contains(followerId)) {
+                    Helper.removeLeash(followerId);
+                    cancel();
+                    return;
+                }
+
+                Location anchorLoc = resolveAnchorLocation(ownerId, followerId, currentOwner, currentFollower);
+                if (anchorLoc == null) {
+                    anchorByFollower.put(followerId, AnchorState.owner());
+                    anchorLoc = currentOwner.getLocation();
+                }
+
+                Location followerLoc = currentFollower.getLocation();
+                if (!anchorLoc.getWorld().equals(followerLoc.getWorld())) {
+                    currentFollower.teleport(anchorLoc);
+                    attachVisualForCurrentAnchor(ownerId, followerId, currentOwner, currentFollower);
+                    return;
+                }
+
+                double distance = anchorLoc.distance(followerLoc);
+                double maxLength = getLength(followerId);
+
+                if (Settings.leashStuckEnabled() && distance > Math.max(Settings.leashStuckCheckDistanceMin(), maxLength)) {
                     if (lastLocation[0] != null) {
-                        double movementXZ = Math.sqrt(Math.pow(lastLocation[0].getX() - mLoc.getX(), 1) +
-                                Math.pow(lastLocation[0].getZ() - mLoc.getZ(), 1));
-                        double deltaY = Math.abs(lastLocation[0].getY() - mLoc.getY());
-                        double approach = sLoc.distance(lastLocation[0]) - distance;
+                        double movementXZ = Math.sqrt(Math.pow(lastLocation[0].getX() - followerLoc.getX(), 1)
+                                + Math.pow(lastLocation[0].getZ() - followerLoc.getZ(), 1));
+                        double deltaY = Math.abs(lastLocation[0].getY() - followerLoc.getY());
+                        double approach = anchorLoc.distance(lastLocation[0]) - distance;
 
-                        // 如果 M 卡住且未移动超过 3 秒，发送提示信息
                         if (movementXZ < Settings.leashStuckMovementXZMax()
                                 && approach < Settings.leashStuckApproachMax()
                                 && deltaY <= Settings.leashStuckDeltaYMax()) {
-                            if (stuckStartTime[0] == 0) {
-                                stuckStartTime[0] = System.currentTimeMillis(); // 开始计时
+                            if (stuckStartTime[0] == 0L) {
+                                stuckStartTime[0] = System.currentTimeMillis();
                             } else if (System.currentTimeMillis() - stuckStartTime[0] > Settings.leashStuckTimeoutMs()) {
-                                // 超过 3 秒，提醒主人仆从被卡住了
-                                String petName = m.getName();
-                                s.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                                        new TextComponent(Lang.tr("leash.stuck_actionbar", "player", petName)));
-                                Helper.removeLeash(m.getUniqueId());
-                                stuckStartTime[0] = 0; // 重置计时器
+                                currentOwner.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                                        new net.md_5.bungee.api.chat.TextComponent(Lang.tr("leash.stuck_actionbar", "player", currentFollower.getName())));
+                                stuckStartTime[0] = 0L;
                             }
                         } else {
-                            stuckStartTime[0] = 0; // 重置计时器（表示 M 正在移动）
+                            stuckStartTime[0] = 0L;
                         }
                     }
                 }
 
-                // 强制拉动逻辑，根据距离调整 M 的速度
-                if (distance > Settings.leashTeleportDistance()) {
-                    m.teleport(sLoc); // 超远距离时直接传送
-                    Helper.attachLeash(m, s);
-                } else {
-                    if (distance > Settings.leashPullHardDistance() && m.isOnGround()) {
-                        FollowPhysics.applyGroundBoost(m, Settings.leashPullGroundYBoost());
+                if (distance > Math.max(Settings.leashTeleportDistance(), maxLength + Settings.leashTeleportSlack())) {
+                    currentFollower.teleport(anchorLoc);
+                } else if (distance > maxLength) {
+                    if (distance > Settings.leashPullHardDistance() && currentFollower.isOnGround()) {
+                        FollowPhysics.applyGroundBoost(currentFollower, Settings.leashPullGroundYBoost());
                     }
+
                     Vector pull = FollowPhysics.computePull(
-                            mLoc, sLoc, distance,
-                            Settings.leashPullStartDistance(),
-                            Settings.leashPullSoftDistance(),
-                            Settings.leashPullMediumDistance(),
-                            Settings.leashPullHardDistance(),
+                            followerLoc,
+                            anchorLoc,
+                            distance,
+                            maxLength,
+                            Math.max(maxLength + 0.5, Settings.leashPullSoftDistance()),
+                            Math.max(maxLength + 1.0, Settings.leashPullMediumDistance()),
+                            Math.max(maxLength + 2.0, Settings.leashPullHardDistance()),
                             Settings.leashPullSoftStrength(),
                             Settings.leashPullMediumStrength(),
                             Settings.leashPullHardStrength(),
                             Settings.leashPullGroundStrength(),
-                            m.isOnGround()
+                            currentFollower.isOnGround()
                     );
-                    // 如果需要拉动 M，则添加拉力
+
                     if (pull != null) {
-                        m.setVelocity(m.getVelocity().add(pull));
+                        currentFollower.setVelocity(currentFollower.getVelocity().add(pull));
                     }
                 }
 
-                // 更新 M 的最后位置
-                lastLocation[0] = mLoc.clone();
+                lastLocation[0] = followerLoc.clone();
             }
         };
 
-        // 启动任务，每 tick 执行一次
-        task.runTaskTimer(instance, 0, Settings.leashTaskPeriodTicks());
-        leashTasks.put(m.getUniqueId(), task); // 将任务存入 leashTasks
+        task.runTaskTimer(instance, 0L, Settings.leashTaskPeriodTicks());
+        leashTasks.put(followerId, task);
     }
 
-    // 检查 S（绑定者）是否已经绑定了 M（被绑定者）
-    private static boolean isLeashed(UUID sUUID, UUID mUUID) {
-        // 如果 leashMap 中包含 S 的 UUID，并且 S 的绑定列表包含 M 的 UUID，则说明 S 已经绑定了 M
-        return leashMap.containsKey(sUUID) && leashMap.get(sUUID).contains(mUUID);
-    }
-    // 检查 M（被绑定者）是否已经绑定到某个 S（绑定者）
-    private boolean isAlreadyBound(UUID mUUID) {
-        // 遍历 leashMap 的所有绑定关系，如果 M 的 UUID 在任何一个 S 的绑定列表中，说明 M 已经绑定
-        return leashMap.values().stream().anyMatch(list -> list.contains(mUUID));
-    }
-    // 清除与 M（被绑定者）相关的绑定任务
-    private void clearLeashTask(UUID mUUID) {
-        // 检查 leashTasks 中是否存在 M 的绑定任务，如果存在，取消并移除该任务
-        if (leashTasks.containsKey(mUUID)) {
-            leashTasks.get(mUUID).cancel();  // 取消任务
-            leashTasks.remove(mUUID);        // 从任务列表中移除
+    private static Location resolveAnchorLocation(UUID ownerId, UUID followerId, Player owner, Player follower) {
+        AnchorState anchor = anchorByFollower.getOrDefault(followerId, AnchorState.owner());
+
+        if (anchor.type == AnchorType.OWNER) {
+            return owner.getLocation();
         }
+
+        if (anchor.type == AnchorType.BLOCK) {
+            return anchor.blockLocation == null ? owner.getLocation() : anchor.blockLocation.clone();
+        }
+
+        if (anchor.type == AnchorType.ENTITY && anchor.entityId != null) {
+            Entity entity = Bukkit.getEntity(anchor.entityId);
+            if (entity != null && entity.isValid()) {
+                return entity.getLocation();
+            }
+            anchorByFollower.put(followerId, AnchorState.owner());
+            return owner.getLocation();
+        }
+
+        return owner.getLocation();
     }
-    // 检查传入的物品是否为剑类物品
-    private boolean isSword(Material material) {
-        // 判断物品的名称是否以 "_SWORD" 结尾，例如 "WOODEN_SWORD"、"IRON_SWORD" 等
-        return material.name().endsWith("_SWORD");
+
+    private static void attachVisualForCurrentAnchor(UUID ownerId, UUID followerId, Player owner, Player follower) {
+        AnchorState anchor = anchorByFollower.getOrDefault(followerId, AnchorState.owner());
+        if (anchor.type == AnchorType.ENTITY && anchor.entityId != null) {
+            Entity anchorEntity = Bukkit.getEntity(anchor.entityId);
+            if (anchorEntity != null && anchorEntity.isValid()) {
+                ensureVisualLeash(anchorEntity, follower);
+                return;
+            }
+        }
+        ensureVisualLeash(owner, follower);
+    }
+
+    private static void ensureVisualLeash(Entity holder, Player follower) {
+        Helper.removeLeash(follower.getUniqueId());
+        Helper.attachLeash(follower, holder);
+    }
+
+    private static void clearFenceBinding(UUID followerId) {
+        leashDataConfig.set("fence_bounds." + followerId, null);
+    }
+
+    private static boolean isFence(Material material) {
+        return material.name().endsWith("_FENCE") || material.name().endsWith("_WALL") || material == Material.CHAIN;
+    }
+
+    private static boolean isSwordOrAxe(Material material) {
+        String name = material.name();
+        return name.endsWith("_SWORD") || name.endsWith("_AXE");
+    }
+
+    public static void clearLeashTask(UUID followerId) {
+        BukkitRunnable existing = leashTasks.remove(followerId);
+        if (existing != null) {
+            existing.cancel();
+        }
     }
 }

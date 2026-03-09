@@ -3,8 +3,16 @@ plugin:
   disabled: "&cSouiLeash wurde deaktiviert."
 
 command:
-  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug>"
+  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname>"
   no_permission: "&cDir fehlt die Berechtigung: &f{permission}"
+  players_only: "&cDieser Befehl kann nur von Spielern genutzt werden."
+  player_not_found: "&cSpieler nicht gefunden: &f{player}"
+  not_owned: "&cDu besitzt &f{player} &cnicht."
+  invalid_number: "&cUngueltige Zahl: &f{value}"
+  anchor_entity_missing: "&cSchaue eine Nicht-Spieler-Entitaet in 8 Bloecken an und versuche es erneut."
+  cannot_clearname_while_leashed: "&cDu kannst deinen eigenen Leinen-Namen nur entfernen, wenn du aktuell nicht angeleint bist."
+  select:
+    success: "&a&b{player} &awurde fuer Leinensteuerung ausgewaehlt."
   reload:
     success: "&aSouiLeash-Konfiguration neu geladen. Aktive Sprache: &f{lang}&a."
   lang:
@@ -24,6 +32,16 @@ command:
 leash:
   bound: "&dDu hast &b{player} &dangeleint."
   unbound: "&cDu hast &b{player} &centleint."
+  temp_detached: "&eTemporar von &b{player} &egetrennt (Besitz bleibt)."
+  temp_attached: "&a&b{player} &awurde wieder an die Leine angehaengt."
+  hold_started: "&7Halte Schleichen mit der Leine, um die Leinenlaenge fuer &f{player} &7zu erhoehen."
+  length_changed: "&aLeinenlaenge fuer &b{player} &aist jetzt &f{length}&a Bloecke."
+  anchor_owner: "&aAnker fuer &b{player} &aauf Besitzer gesetzt."
+  anchor_block: "&aAnker fuer &b{player} &aauf aktuellen Block gesetzt."
+  anchor_entity: "&aAnker auf Entitaet gesetzt: &f{entity}&a."
+  name_set: "&aLeinen-Name von &b{player} &aauf &f{name} &agesetzt."
+  name_cleared: "&aLeinen-Name von &b{player} &aentfernt."
+  optout_disconnect: "&e{player} hat die Leinen-Berechtigung deaktiviert; alle Verbindungen wurden sofort entfernt."
   stuck_actionbar: "&eDein angeleinter Spieler &d{player} &esteckt fest!"
 
 summon:
