@@ -73,6 +73,7 @@ public final class SoulLeash extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        SoloTestManager.shutdown();
         if (fence != null) {
             fence.saveFenceLeashData();
         }

@@ -98,6 +98,14 @@ public class Executors implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (sub.equals("test")) {
+            if (!(sender instanceof Player player)) {
+                Lang.send(sender, "command.players_only");
+                return true;
+            }
+            return handleTestSubcommand(player, args);
+        }
+
         if (sub.equals("select") && args.length >= 2) {
             if (!(sender instanceof Player owner)) {
                 Lang.send(sender, "command.players_only");
@@ -246,7 +254,7 @@ public class Executors implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
             StringUtil.copyPartialMatches(args[0], Arrays.asList(
-                    "reload", "lang", "status", "debug", "select", "temp", "permanent", "length", "anchor", "clearname"
+                    "reload", "lang", "status", "debug", "select", "temp", "permanent", "length", "anchor", "clearname", "test"
             ), completions);
             return completions;
         }
@@ -268,6 +276,22 @@ public class Executors implements CommandExecutor, TabCompleter {
 
         if (args.length == 4 && args[0].equalsIgnoreCase("length")) {
             StringUtil.copyPartialMatches(args[3], Arrays.asList("set", "add"), completions);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("test")) {
+            StringUtil.copyPartialMatches(args[1], Arrays.asList("spawn", "despawn", "reset", "run", "mirror"), completions);
+            return completions;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("test")) {
+            if (args[1].equalsIgnoreCase("run")) {
+                StringUtil.copyPartialMatches(args[2], Arrays.asList("basic"), completions);
+                return completions;
+            }
+            if (args[1].equalsIgnoreCase("mirror")) {
+                StringUtil.copyPartialMatches(args[2], Arrays.asList("start", "stop", "tug"), completions);
+                return completions;
+            }
         }
 
         return completions;
@@ -326,5 +350,69 @@ public class Executors implements CommandExecutor, TabCompleter {
 
     private String onOff(boolean value) {
         return value ? "ON" : "OFF";
+    }
+
+    private boolean handleTestSubcommand(Player player, String[] args) {
+        if (args.length < 2) {
+            Lang.send(player, "command.test.usage");
+            return true;
+        }
+
+        String action = args[1].toLowerCase(Locale.ROOT);
+        if (action.equals("spawn")) {
+            SoloTestManager.spawnOrMoveSubject(player);
+            Lang.send(player, "command.test.spawned");
+            return true;
+        }
+
+        if (action.equals("despawn")) {
+            boolean removed = SoloTestManager.despawnSubject(player.getUniqueId());
+            Lang.send(player, removed ? "command.test.despawned" : "command.test.no_subject");
+            return true;
+        }
+
+        if (action.equals("reset")) {
+            SoloTestManager.reset(player.getUniqueId());
+            Lang.send(player, "command.test.reset");
+            return true;
+        }
+
+        if (action.equals("run") && args.length >= 3 && args[2].equalsIgnoreCase("basic")) {
+            SoloTestManager.spawnOrMoveSubject(player);
+            SoloTestManager.startMirror(player);
+            SoloTestManager.tug(player);
+            Lang.send(player, "command.test.run_basic");
+            return true;
+        }
+
+        if (action.equals("mirror")) {
+            if (args.length < 3) {
+                Lang.send(player, "command.test.usage");
+                return true;
+            }
+
+            String mirrorAction = args[2].toLowerCase(Locale.ROOT);
+            if (mirrorAction.equals("start")) {
+                SoloTestManager.startMirror(player);
+                Lang.send(player, "command.test.mirror_started");
+                return true;
+            }
+            if (mirrorAction.equals("stop")) {
+                SoloTestManager.stopMirror(player.getUniqueId());
+                Lang.send(player, "command.test.mirror_stopped");
+                return true;
+            }
+            if (mirrorAction.equals("tug")) {
+                if (SoloTestManager.tug(player)) {
+                    Lang.send(player, "command.test.mirror_tug");
+                } else {
+                    Lang.send(player, "command.test.no_subject");
+                }
+                return true;
+            }
+        }
+
+        Lang.send(player, "command.test.usage");
+        return true;
     }
 }

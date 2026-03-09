@@ -3,7 +3,7 @@ plugin:
   disabled: "&cSouiLeash wurde deaktiviert."
 
 command:
-  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname>"
+  usage: "&eNutzung: &f/leashplayers <reload|lang|status|debug|select|temp|permanent|length|anchor|clearname|test>"
   no_permission: "&cDir fehlt die Berechtigung: &f{permission}"
   players_only: "&cDieser Befehl kann nur von Spielern genutzt werden."
   player_not_found: "&cSpieler nicht gefunden: &f{player}"
@@ -28,6 +28,16 @@ command:
     stats: "&7Status: &fmasters={masters} &7links={links} &7tasks={tasks} &7fenceBound={fence} &7pendingTeleport={pending}"
     leash_tuning: "&7Leash-Werte: &fperiod={period}t &7tp={teleport} &7hard={hard} &7mid={medium} &7soft={soft}"
     sync_tuning: "&7Sync-Werte: &fjoinDelay={join}t &7portalDelay={portal}t &7effectPeriod={effects}t &7summonCd={summon}s &7foodCd={foodcooldown}ms"
+  test:
+    usage: "&eNutzung: &f/leashplayers test <spawn|despawn|reset|run basic|mirror <start|stop|tug>>"
+    spawned: "&aDein SoulLeash-Testsubjekt wurde gespawnt (oder verschoben)."
+    despawned: "&aDein SoulLeash-Testsubjekt wurde entfernt."
+    no_subject: "&cKein Testsubjekt gefunden. Nutze zuerst &f/leashplayers test spawn&c."
+    reset: "&aSolo-Test zurückgesetzt (Mirror + Testsubjekt)."
+    run_basic: "&aBasis-Solo-Test gestartet: Mirror-Modus aktiv und ein Zug wurde ausgelöst."
+    mirror_started: "&aMirror-Modus gestartet. Das Testsubjekt zieht jetzt wie eine Leine an dir."
+    mirror_stopped: "&eMirror-Modus gestoppt."
+    mirror_tug: "&aMirror-Zug ausgeführt."
 
 leash:
   bound: "&dDu hast &b{player} &dangeleint."

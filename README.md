@@ -60,6 +60,11 @@ Admin command:
 - `/leashplayers length <player> <value> [set|add]`
 - `/leashplayers anchor <player> <owner|entity|block>`
 - `/leashplayers clearname [player]`
+- `/leashplayers test spawn`
+- `/leashplayers test despawn`
+- `/leashplayers test reset`
+- `/leashplayers test run basic`
+- `/leashplayers test mirror <start|stop|tug>`
 
 ## Build (local)
 
